@@ -111,7 +111,7 @@ window.__ModuleLoader__.load({
           st?.qrAt
             ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
             : h('div', { className: 'fs-hint' }, '正在生成二维码，约 10 秒…'),
-          logged ? null : h('div', { className: 'fs-hint' }, st?.qrAt ? '用手机 QQ 扫码，并在手机上点允许登录' : ''),
+          st?.qrAt ? h('div', { className: 'fs-hint' }, '用手机 QQ 扫码，并点允许登录') : null,
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' }, st.installedBefore ? '安装中断了' : '还没安装'),
@@ -122,7 +122,7 @@ window.__ModuleLoader__.load({
               busy === '/install' ? '启动中…' : (st.installedBefore ? '重新安装' : '开始安装')),
           ),
         ) : null,
-        (st && st.installed && st.installing) ? h('div', { className: 'fs-card' },
+        (st?.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' },
             st.installing ? `正在安装 ${st.installLabel || 'QQ 运行环境'}…` : '运行环境未就绪'),
           (st.installPct >= 0) ? h('div', { className: 'fs-bar' },
