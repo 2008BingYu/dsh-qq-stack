@@ -404,10 +404,11 @@ function applyInner(ctx, pluginConfig = {}) {
             if (guess && envFile.DSH_QQ_UIN !== guess) {
               writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: guess }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
             }
-            ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
+            const changed = ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
+            if (!changed) return json({ ok: true, restarted: false })
           } catch {}
           try { spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }) } catch {}
-          return json({ ok: true })
+          return json({ ok: true, restarted: true })
         }
         if (req.method === 'POST' && p === '/refresh-qr') {
           spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
