@@ -59,6 +59,7 @@ function resolveConfig(config = {}) {
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
 let qrRefreshedFor = 0
+let qrRefreshCount = 0
 let healing = false
 async function probeLogin(port, token, force) {
   const ttl = probeCache.loggedIn ? 15000 : 3000
@@ -313,8 +314,9 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false }
-          if (!login.loggedIn && qq && !installing && qrAt && qrAge > 240 && !scan.scanned && qrRefreshedFor !== qrAt) {
+          if (!login.loggedIn && qq && !installing && qrAt && qrAge > 150 && !scan.scanned && qrRefreshedFor !== qrAt && qrRefreshCount < 6) {
             qrRefreshedFor = qrAt
+            qrRefreshCount += 1
             spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           }
           return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge })
