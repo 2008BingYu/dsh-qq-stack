@@ -50,6 +50,9 @@ window.__ModuleLoader__.load({
 .fs-name{font-size:16px;font-weight:600;margin-top:4px}
 .fs-uin{font-size:12px;opacity:.55}
 .fs-btn.fs-danger{margin-top:8px;color:#d93025;border-color:rgba(217,48,37,.35)}
+.fs-tabs{display:flex;gap:6px;margin-bottom:10px}
+.fs-tab{flex:1;padding:8px 0;border:none;border-radius:9px;background:rgba(127,127,127,.12);color:inherit;font-size:13px;opacity:.7}
+.fs-tab-on{background:#12b7f5;color:#fff;opacity:1}
 .fs-clean{display:block;width:100%;padding:14px;margin-top:2px;border:none;border-radius:12px;background:rgba(127,127,127,.10);color:#c0392b;font-size:14px;font-weight:500}
 .fs-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:99;padding:32px}
 .fs-dialog{background:#f7f7f8;color:#111;border-radius:16px;padding:20px 18px 14px;width:100%;max-width:290px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
@@ -89,6 +92,7 @@ window.__ModuleLoader__.load({
       }, [st?.installing])
 
       const [askWipe, setAskWipe] = react.useState(false)
+      const [tab, setTab] = react.useState('')
       const [editConn, setEditConn] = react.useState(false)
       const [portIn, setPortIn] = react.useState('')
       const [tokenIn, setTokenIn] = react.useState('')
@@ -120,16 +124,22 @@ window.__ModuleLoader__.load({
       const qrKey = st?.qrToken || st?.qrAt || ''
       const qrUrl = qrKey ? `${API}/qr.png?t=${encodeURIComponent(qrKey)}` : `${API}/qr.png`
       const logged = !!st?.loggedIn
+      const page = tab || (logged ? 'settings' : 'login')
+      react.useEffect(() => { if (!st?.installed) setTab('') }, [st?.installed])
 
       return h('div', { className: 'fs-wrap' },
         h('style', null, CSS),
         err ? h('div', { className: 'fs-hint' }, '状态获取失败，稍后自动重试') : null,
-        (logged && st?.installed && !st?.installing) ? h('div', { className: 'fs-card' },
+        (st?.installed && !st?.installing && page === 'settings') ? h('div', { className: 'fs-card' },
           row('QQ 进程', !!st?.qq, st?.qq ? '运行中' : '未运行'),
           row('OneBot 端口', !!st?.wsUp, st?.wsUp ? '已监听' : '未监听'),
-          row('登录状态', logged, `已登录 ${st?.nickname || ''} ${st?.uin || ''}`),
+          row('登录状态', logged, logged ? `已登录 ${st?.nickname || ''} ${st?.uin || ''}` : '未登录'),
         ) : null,
-        (st?.installed && !st?.installing && !logged) ? h('div', { className: 'fs-card fs-center' },
+        (st?.installed && !st?.installing) ? h('div', { className: 'fs-tabs' },
+          h('button', { className: 'fs-tab' + (page === 'login' ? ' fs-tab-on' : ''), onClick: () => setTab('login') }, '登录'),
+          h('button', { className: 'fs-tab' + (page === 'settings' ? ' fs-tab-on' : ''), onClick: () => setTab('settings') }, '设置'),
+        ) : null,
+        (st?.installed && !st?.installing && page === 'login' && !logged) ? h('div', { className: 'fs-card fs-center' },
           h('div', { className: 'fs-qrbox' },
             st?.qrAt
               ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
@@ -140,6 +150,9 @@ window.__ModuleLoader__.load({
             ) : null,
           ),
           st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : '用手机 QQ 扫码，并点允许登录') : (st?.authorized ? h('div', { className: 'fs-hint' }, '登录成功后会显示头像') : null),
+        ) : null,
+        (st?.installed && !st?.installing && page === 'login' && logged) ? h('div', { className: 'fs-card fs-center' },
+          h('div', { className: 'fs-hint' }, '已登录，去「设置」查看状态或切换账号'),
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' }, st.installedBefore ? '上次安装没完成' : '还没安装'),
@@ -174,7 +187,7 @@ window.__ModuleLoader__.load({
             ),
           ) : null,
         ) : null,
-        st?.installed ? h('button', { className: 'fs-clean', onClick: () => setAskWipe(true) }, '清理运行环境') : null,
+        (st?.installed && page === 'settings') ? h('button', { className: 'fs-clean', onClick: () => setAskWipe(true) }, '清理运行环境') : null,
         askWipe ? h('div', { className: 'fs-mask' },
           h('div', { className: 'fs-dialog' },
             h('div', { className: 'fs-dialog-title' }, '清理运行环境'),
@@ -185,7 +198,7 @@ window.__ModuleLoader__.load({
             ),
           ),
         ) : null,
-        logged ? h('div', { className: 'fs-card fs-account' },
+        (logged && page === 'settings') ? h('div', { className: 'fs-card fs-account' },
           h('img', {
             className: 'fs-avatar',
             src: st?.uin ? `https://q1.qlogo.cn/g?b=sdk&nk=${st.uin}&s=640` : '',
