@@ -204,7 +204,11 @@ for (const f of files) {
   try { d = JSON.parse(readFileSync(p, 'utf8')) } catch { continue }
   d.network = d.network || {}
   const ws = Array.isArray(d.network.websocketServers) ? d.network.websocketServers : []
-  if (ws.some((x) => Number(x.port) === port && x.enable !== false)) continue
+  const hit = ws.find((x) => Number(x.port) === port && x.enable !== false)
+  if (hit) {
+    if (String(hit.token || '') !== String(token || '')) { hit.token = token; try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {} }
+    continue
+  }
   d.network.websocketServers = [{ name: 'dsh', enable: true, host: '127.0.0.1', port, messagePostFormat: 'array', reportSelfMessage: false, token, debug: false, heartInterval: 30000, enableForcePushEvent: true }]
   try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {}
 }
