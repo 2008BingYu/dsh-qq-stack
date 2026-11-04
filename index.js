@@ -313,7 +313,7 @@ function applyInner(ctx, pluginConfig = {}) {
           spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           return json({ ok: true })
         }
-        if (req.method === 'POST' && p === '/wipe') {
+        if ((req.method === 'POST' || req.method === 'GET') && p === '/wipe') {
           try {
             spawnSafe('bash', ['-c', `bash "${cfg.root}/stop-qq.sh" 2>/dev/null; rm -rf "${cfg.root}"`], { detached: true, stdio: 'ignore' })
           } catch {}
