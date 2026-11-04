@@ -9,12 +9,14 @@ if [ -f "$ROOT/config.env" ]; then
 fi
 UIN="${DSH_QQ_UIN:-}"
 WS_PORT="${DSH_QQ_WS_PORT:-3001}"
+HOST="${DSH_QQ_HOST:-127.0.0.1}"
 TOKEN="${DSH_QQ_TOKEN:-dshfish-3001}"
 
 if [ ! -f "$ROOT/config.env" ]; then
   cat > "$ROOT/config.env" <<EOF
 DSH_QQ_UIN=$UIN
 DSH_QQ_WS_PORT=$WS_PORT
+DSH_QQ_HOST=$HOST
 DSH_QQ_TOKEN=$TOKEN
 EOF
 fi
@@ -161,11 +163,11 @@ write_onebot() {
       {
         "name": "dsh",
         "enable": true,
-        "host": "127.0.0.1",
+        "host": "${HOST:-127.0.0.1}",
         "port": $WS_PORT,
         "messagePostFormat": "array",
         "reportSelfMessage": false,
-        "token": "$TOKEN",
+        "token": "${TOKEN:-}",
         "debug": false,
         "heartInterval": 30000,
         "enableForcePushEvent": true
@@ -193,6 +195,7 @@ import { join } from 'node:path'
 
 const root = process.argv[2] || '/root/qq-bot'
 const port = Number(process.env.DSH_QQ_WS_PORT || 3001)
+const host = process.env.DSH_QQ_HOST || '127.0.0.1'
 const token = process.env.DSH_QQ_TOKEN || ''
 const dir = join(root, 'opt/opt/QQ/resources/app/app_launcher/napcat/config')
 let files = []
@@ -209,7 +212,7 @@ for (const f of files) {
     if (String(hit.token || '') !== String(token || '')) { hit.token = token; try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {} }
     continue
   }
-  d.network.websocketServers = [{ name: 'dsh', enable: true, host: '127.0.0.1', port, messagePostFormat: 'array', reportSelfMessage: false, token, debug: false, heartInterval: 30000, enableForcePushEvent: true }]
+  d.network.websocketServers = [{ name: 'dsh', enable: true, host, port, messagePostFormat: 'array', reportSelfMessage: false, token, debug: false, heartInterval: 30000, enableForcePushEvent: true }]
   try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {}
 }
 EOFJS
