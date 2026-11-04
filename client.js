@@ -68,6 +68,13 @@ window.__ModuleLoader__.load({
         return () => clearInterval(t)
       }, [st?.installing])
 
+      const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
+      const applyFix = async () => {
+        setBusy('/apply')
+        await api('POST', '/apply')
+        setTimeout(() => { void load(); setBusy('') }, 12000)
+      }
+
       const post = async (path, body) => {
         setBusy(path)
         await api('POST', path, body)
@@ -82,7 +89,7 @@ window.__ModuleLoader__.load({
         err ? h('div', { className: 'fs-hint' }, '状态获取失败，稍后自动重试') : null,
         h('div', { className: 'fs-card' },
           row('QQ 进程', !!st?.qq, st?.qq ? '运行中' : '未运行'),
-          row('OneBot 端口', !!st?.qq, st?.qq ? '已监听' : '未监听'),
+          row('OneBot 端口', !!st?.wsUp, st?.wsUp ? '已监听' : '未监听'),
           row('登录状态', logged, logged ? `已登录 ${st?.nickname || ''} ${st?.uin || ''}` : '未登录'),
         ),
         (st?.installed !== false && !st?.installing && !logged) ? h('div', { className: 'fs-card fs-center' },
