@@ -21,7 +21,14 @@ function ensureOnebot(root, port, token) {
     try { cfg = JSON.parse(readFileSync(p, 'utf8')) } catch { cfg = {} }
     cfg.network = cfg.network || {}
     const list = Array.isArray(cfg.network.websocketServers) ? cfg.network.websocketServers : []
-    if (list.some((x) => Number(x.port) === Number(port) && x.enable !== false)) continue
+    const hit = list.find((x) => Number(x.port) === Number(port) && x.enable !== false)
+    if (hit) {
+      if (String(hit.token ?? '') !== String(token ?? '')) {
+        hit.token = String(token ?? '')
+        try { writeFileSync(p, JSON.stringify(cfg, null, 2)); changed = true } catch {}
+      }
+      continue
+    }
     cfg.network.websocketServers = [{
       name: 'dsh', enable: true, host: '127.0.0.1', port: Number(port),
       messagePostFormat: 'array', reportSelfMessage: false, token,
