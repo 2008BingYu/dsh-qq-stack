@@ -255,7 +255,7 @@ function applyInner(ctx, pluginConfig = {}) {
   }, 'dsh-qq-stack: config-check')
 
   ctx.effect(() => {
-    const t = setTimeout(() => { try { ensureInstalled() } catch (e) { log(`[qq-stack] ${e?.message ?? e}`) } }, 8000)
+    const t = setTimeout(() => { try { ensureInstalled() } catch (e) { log(`[qq-stack] ${e?.message ?? e}`) } }, 2000)
     return () => clearTimeout(t)
   }, 'dsh-qq-stack: autostart')
 
