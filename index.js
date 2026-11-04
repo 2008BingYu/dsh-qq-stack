@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import net from 'node:net'
 import { existsSync, readFileSync, writeFileSync, statSync, readdirSync, unlinkSync, mkdirSync, openSync } from 'node:fs'
 
@@ -372,11 +372,10 @@ function applyInner(ctx, pluginConfig = {}) {
           return json({ ok: true })
         }
         if ((req.method === 'POST' || req.method === 'GET') && p === '/wipe') {
-          try {
-            spawnSafe('bash', ['-c', `bash "${cfg.root}/stop-qq.sh" 2>/dev/null; rm -rf "${cfg.root}"`], { detached: true, stdio: 'ignore' })
-          } catch {}
+          try { spawnSync('bash', [`${cfg.root}/stop-qq.sh`], { timeout: 30000 }) } catch {}
+          try { spawnSync('bash', ['-c', `rm -rf "${cfg.root}"`], { timeout: 120000 }) } catch {}
           probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
-          return json({ ok: true })
+          return json({ ok: true, installed: false })
         }
         if (req.method === 'POST' && p === '/install') {
           const installer = existsSync(`${cfg.root}/install.sh`) ? `${cfg.root}/install.sh` : `${SELF}install.sh`
