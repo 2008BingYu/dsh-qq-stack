@@ -43,6 +43,12 @@ window.__ModuleLoader__.load({
 .fs-avatar{width:72px;height:72px;border-radius:50%;background:rgba(127,127,127,.15);object-fit:cover}
 .fs-name{font-size:16px;font-weight:600;margin-top:4px}
 .fs-uin{font-size:12px;opacity:.55}
+.fs-btn.fs-danger{margin-top:8px;color:#d93025;border-color:rgba(217,48,37,.35)}
+.fs-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.fs-head-title{font-size:14px;font-weight:600}
+.fs-more{width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:inherit;font-size:18px;line-height:1}
+.fs-menu{position:relative;display:flex;flex-direction:column;background:rgba(127,127,127,.12);border-radius:10px;margin-bottom:10px}
+.fs-menu-item{text-align:left;padding:10px 12px;border:none;background:transparent;color:inherit;font-size:14px}
 .fs-btns-col{flex-direction:column;width:100%;margin-top:14px}
 .fs-primary{background:#12b7f5}
 .fs-login{display:flex;flex-direction:column;gap:10px}
@@ -84,7 +90,23 @@ window.__ModuleLoader__.load({
       const qrUrl = st?.qrAt ? `${API}/qr.png?t=${st.qrAt}` : `${API}/qr.png`
       const logged = !!st?.loggedIn
 
+      const [menu, setMenu] = react.useState(false)
+      const [confirmWipe, setConfirmWipe] = react.useState(false)
+
       return h('div', { className: 'fs-wrap' },
+        h('div', { className: 'fs-head' },
+          h('div', { className: 'fs-head-title' }, 'QQ 底座'),
+          h('button', { className: 'fs-more', onClick: () => { setMenu(!menu); setConfirmWipe(false) } }, '⋮'),
+        ),
+        menu ? h('div', { className: 'fs-menu' },
+          h('button', {
+            className: 'fs-menu-item',
+            onClick: () => {
+              if (!confirmWipe) { setConfirmWipe(true); return }
+              setMenu(false); setConfirmWipe(false); void post('/wipe')
+            },
+          }, confirmWipe ? '再点一次确认清理' : '清理运行环境'),
+        ) : null,
         h('style', null, CSS),
         err ? h('div', { className: 'fs-hint' }, '状态获取失败，稍后自动重试') : null,
         h('div', { className: 'fs-card' },
