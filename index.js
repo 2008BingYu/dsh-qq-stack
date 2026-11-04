@@ -60,7 +60,8 @@ function resolveConfig(config = {}) {
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
 let healing = false
 async function probeLogin(port, token, force) {
-  if (!force && Date.now() - probeCache.at < 15000) return probeCache
+  const ttl = probeCache.loggedIn ? 15000 : 3000
+  if (!force && Date.now() - probeCache.at < ttl) return probeCache
   const result = await new Promise((resolve) => {
     let done = false
     const finish = (v) => { if (!done) { done = true; resolve(v) } }
@@ -144,6 +145,18 @@ function detectAccount(root) {
     }
   } catch {}
   return best
+}
+
+function scanState(root) {
+  let raw = ''
+  try {
+    const txt = readFileSync(`${root}/logs/qq.log`, 'utf8')
+    raw = txt.slice(-20000)
+  } catch { return { scanned: false, confirmed: false } }
+  const startIdx = raw.lastIndexOf('NapCat.Core Version')
+  const tail = startIdx >= 0 ? raw.slice(startIdx) : raw
+  const scanned = tail.includes('二维码已被扫描') || tail.includes('扫码成功')
+  return { scanned, confirmed: false }
 }
 
 function alive(pid) {
@@ -295,8 +308,9 @@ function applyInner(ctx, pluginConfig = {}) {
             }
           } catch {}
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
-          const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token) : { loggedIn: false, nickname: '' }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
+          const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
+          const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false }
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
