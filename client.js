@@ -36,7 +36,8 @@ window.__ModuleLoader__.load({
 .fs-qr{width:min(62vw,240px);height:auto;border-radius:12px;background:#fff;padding:8px}
 .fs-hint{font-size:12px;opacity:.6}
 .fs-input{width:100%;box-sizing:border-box;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;border-radius:9px;padding:9px;font-size:14px}
-.fs-btns{display:flex;gap:8px}
+.fs-btns{display:flex;gap:8px;margin-top:12px}
+.fs-btn[disabled]{opacity:.55}
 .fs-btn{flex:1;border:0;border-radius:9px;padding:10px;font-size:14px;background:#2f6fed;color:#fff}
 .fs-ghost{background:rgba(127,127,127,.2);color:inherit}
 .fs-account{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px}
@@ -118,8 +119,8 @@ window.__ModuleLoader__.load({
           h('div', { className: 'fs-hint' },
             st.installedBefore ? '上次安装没走完，点下面重试（不会重复下载已装好的部分）' : '首次安装约 250MB，需要几分钟'),
           h('div', { className: 'fs-btns' },
-            h('button', { className: 'fs-btn fs-primary', onClick: () => post('/install') },
-              busy === '/install' ? '启动中…' : (st.installedBefore ? '重新安装' : '开始安装')),
+            h('button', { className: 'fs-btn fs-primary', disabled: busy === '/install', onClick: () => post('/install') },
+              busy === '/install' ? '安装中…' : (st.installedBefore ? '重新安装' : '开始安装')),
           ),
         ) : null,
         (st?.installing) ? h('div', { className: 'fs-card' },
