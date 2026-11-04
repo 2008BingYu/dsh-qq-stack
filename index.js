@@ -165,7 +165,8 @@ function scanState(root) {
   const startIdx = raw.lastIndexOf('NapCat.Core Version')
   const tail = startIdx >= 0 ? raw.slice(startIdx) : raw
   const scanned = tail.includes('二维码已被扫描') || tail.includes('扫码成功')
-  return { scanned, confirmed: false }
+  const authorized = scanned && (tail.includes('已加载 2 个适配器') || tail.includes('登录成功'))
+  return { scanned, authorized }
 }
 
 function alive(pid) {
@@ -320,8 +321,8 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch {}
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
-          const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
+          const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false, authorized: false }
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, authorized: !!scan.authorized, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
