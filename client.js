@@ -100,8 +100,17 @@ window.__ModuleLoader__.load({
       const [addrIn, setAddrIn] = react.useState('')
       const [tokenIn, setTokenIn] = react.useState('')
       const saveTimer = react.useRef(null)
+      const connInited = react.useRef(false)
+      const addrAt = react.useRef('')
+      const tokenAt = react.useRef('')
       react.useEffect(() => {
-        if (st) { setAddrIn(`${st.host || '127.0.0.1'}:${st.port || '3001'}`); setTokenIn(String(st.token || '')) }
+        if (!st || connInited.current) return
+        const addr = `${st.host || '127.0.0.1'}:${st.port || '3001'}`
+        connInited.current = true
+        addrAt.current = addr
+        tokenAt.current = String(st.token || '')
+        setAddrIn(addr)
+        setTokenIn(String(st.token || ''))
       }, [st])
       const saveConn = async (apply) => {
         let host = '127.0.0.1'
@@ -111,8 +120,10 @@ window.__ModuleLoader__.load({
         if (cut > 0) { host = raw.slice(0, cut) || '127.0.0.1'; port = raw.slice(cut + 1) || '3001' }
         else if (raw) { port = raw }
         const tok = (tokenIn || '').trim()
-        const same = st && String(st.host || '127.0.0.1') === host && String(st.port || '3001') === port && String(st.token || '') === tok
-        if (same) return
+        const addr = `${host}:${port}`
+        if (addr === addrAt.current && tok === tokenAt.current) return
+        addrAt.current = addr
+        tokenAt.current = tok
         await api('POST', '/save', { DSH_QQ_HOST: host, DSH_QQ_WS_PORT: port, DSH_QQ_TOKEN: tok })
         if (apply) { setBusy('/apply'); await api('POST', '/apply'); setBusy('') }
         setTimeout(() => { void load() }, 1200)
