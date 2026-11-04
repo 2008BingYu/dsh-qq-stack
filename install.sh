@@ -149,9 +149,9 @@ if(j.main!=="./loadNapCat.js"){j.main="./loadNapCat.js";fs.writeFileSync(p,JSON.
 
 CFG_DIR="$QQ_APP/app_launcher/napcat/config"
 mkdir -p "$CFG_DIR"
-if ! ls "$CFG_DIR"/onebot11_*.json >/dev/null 2>&1; then
-  say "写入 OneBot 配置（ws ${WS_PORT}）"
-  cat > "$CFG_DIR/onebot11_${UIN:-default}.json" <<EOF
+write_onebot() {
+  local uin="$1"
+  cat > "$CFG_DIR/onebot11_${uin}.json" <<EOF
 {
   "network": {
     "httpServers": [],
@@ -180,6 +180,11 @@ if ! ls "$CFG_DIR"/onebot11_*.json >/dev/null 2>&1; then
   "imageDownloadProxy": ""
 }
 EOF
+}
+
+if ! ls "$CFG_DIR"/onebot11_*.json >/dev/null 2>&1; then
+  say "写入 OneBot 配置（ws ${WS_PORT}）"
+  write_onebot "${UIN:-default}"
 fi
 
 if [ ! -f "$ROOT/start-qq.sh" ]; then
@@ -224,5 +229,6 @@ EOF
 fi
 
 chmod +x "$ROOT"/*.sh
+if [ -n "${UIN:-}" ]; then write_onebot "$UIN"; fi
 say "安装完成，启动 QQ"
 bash "$ROOT/start-qq.sh"
