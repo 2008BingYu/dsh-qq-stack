@@ -76,6 +76,10 @@ window.__ModuleLoader__.load({
 .fs-wide{padding:11px}
 .fs-sep{text-align:center;font-size:12px;opacity:.5;margin-top:6px}
 .fs-install{font-size:14px;font-weight:600;margin-bottom:6px}
+.fs-step{margin-top:14px}
+.fs-step-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.fs-step-label{font-size:13px}
+.fs-step-pct{font-size:12px;opacity:.6}
 .fs-bar{height:6px;border-radius:3px;background:rgba(127,127,127,.2);overflow:hidden;margin:8px 0 6px}
 .fs-bar-in{height:100%;background:#12b7f5;border-radius:3px;transition:width .4s}`
 
@@ -169,7 +173,7 @@ window.__ModuleLoader__.load({
         ) : null,
         err ? h('div', { className: 'fs-hint' }, '状态获取失败，稍后自动重试') : null,
         (!st && !err) ? h('div', { className: 'fs-hint' }, '正在读取状态…') : null,
-        (st && !st?.installing && page === 'login') ? h('div', { className: 'fs-card' },
+        (st && st?.installed && !st?.installing && page === 'login') ? h('div', { className: 'fs-card' },
           row('QQ 进程', !!st?.qq, st?.qq ? '运行中' : '未运行'),
           row('OneBot 端口', !!st?.wsUp, st?.wsUp ? '已监听' : '未监听'),
           row('登录状态', logged, logged ? `已登录 ${st?.nickname || ''} ${st?.uin || ''}` : '未登录'),
@@ -187,6 +191,10 @@ window.__ModuleLoader__.load({
           st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : '用手机 QQ 扫码，并点允许登录') : (st?.authorized ? h('div', { className: 'fs-hint' }, '登录成功后会显示头像') : null),
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
+          row('LinuxQQ', !!st.linuxqqDone, st.linuxqqDone ? '已安装' : '未安装'),
+          row('NapCat', !!st.napcatDone, st.napcatDone ? '已安装' : '未安装'),
+        ) : null,
+        (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' }, st.installedBefore ? '上次安装没完成' : '还没安装'),
           h('div', { className: 'fs-hint' },
             st.installedBefore ? '可以直接重试，已经下好的部分会复用' : '首次安装约 250MB，需要几分钟'),
@@ -196,13 +204,23 @@ window.__ModuleLoader__.load({
           ),
         ) : null,
         (st?.installing) ? h('div', { className: 'fs-card' },
-          h('div', { className: 'fs-install' },
-            st.installing ? `正在安装 ${st.installLabel || 'QQ 运行环境'}…` : '运行环境未就绪'),
-          (st.installPct >= 0) ? h('div', { className: 'fs-bar' },
-            h('div', { className: 'fs-bar-in', style: { width: `${Math.max(2, Math.min(100, st.installPct))}%` } }),
-          ) : null,
-          h('div', { className: 'fs-hint' },
-            st.installPct >= 0 ? `${st.installPct}%` : (st.installTail || '首次安装约 250MB，请稍候')),
+          row('LinuxQQ', !!st.linuxqqDone, st.linuxqqDone ? '已安装' : (st.installStep === 'linuxqq' ? '下载中' : '等待')),
+          row('NapCat', !!st.napcatDone, st.napcatDone ? '已安装' : (st.installStep === 'napcat' ? '下载中' : '等待')),
+          (function () {
+            const measuring = st.installStep === 'napcat' && st.measurePct >= 0 && st.measurePct < 100 && !st.napcatDone
+            const pct = measuring ? st.measurePct : st.installPct
+            const label = measuring ? '镜像测速' : (st.installLabel || '准备中')
+            return h('div', { className: 'fs-step' },
+              h('div', { className: 'fs-step-row' },
+                h('div', { className: 'fs-step-label' }, label),
+                pct >= 0 ? h('div', { className: 'fs-step-pct' }, `${pct}%`) : null,
+              ),
+              h('div', { className: 'fs-bar' },
+                h('div', { className: 'fs-bar-in', style: { width: `${pct >= 0 ? Math.max(2, Math.min(100, pct)) : 2}%` } }),
+              ),
+              (!measuring && st.installTail && pct < 0) ? h('div', { className: 'fs-hint' }, st.installTail) : null,
+            )
+          })(),
         ) : null,
         (st?.installed && !st?.installing && page === 'settings') ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-sec-title' }, '连接设置'),
