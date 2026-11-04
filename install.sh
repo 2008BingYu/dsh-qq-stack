@@ -254,5 +254,6 @@ fi
 
 chmod +x "$ROOT"/*.sh
 if [ -n "${UIN:-}" ]; then write_onebot "$UIN"; fi
+touch "$ROOT/.installed"
 say "安装完成，启动 QQ"
 bash "$ROOT/start-qq.sh"
