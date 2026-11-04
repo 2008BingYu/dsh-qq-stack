@@ -1,12 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { spawnSync, spawn } from 'node:child_process'
+import { readFileSync, existsSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 
-const [pkgDir, root] = process.argv.slice(2)
-if (!pkgDir || !root) process.exit(0)
+const [profileDir, root] = process.argv.slice(2)
+if (!profileDir || !root) process.exit(0)
 
-const alive = (pid) => {
-  try { process.kill(Number(pid), 0); return true } catch { return false }
-}
+const pkgDir = `${profileDir}/node_modules/dsh-qq-stack`
+let goneSince = 0
+
+const present = () => existsSync(`${pkgDir}/index.js`) || existsSync(`${pkgDir}/package.json`)
 
 function cleanup() {
   try { spawnSync('bash', [`${root}/stop-qq.sh`], { timeout: 30000 }) } catch {}
@@ -18,5 +19,7 @@ function cleanup() {
 }
 
 setInterval(() => {
-  if (!existsSync(`${pkgDir}/package.json`)) { cleanup(); process.exit(0) }
+  if (present()) { goneSince = 0; return }
+  if (!goneSince) { goneSince = Date.now(); return }
+  if (Date.now() - goneSince > 180000) { cleanup(); process.exit(0) }
 }, 20000)
