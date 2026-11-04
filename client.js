@@ -100,15 +100,16 @@ window.__ModuleLoader__.load({
       const [addrIn, setAddrIn] = react.useState('')
       const [tokenIn, setTokenIn] = react.useState('')
       const saveTimer = react.useRef(null)
+      const applyTimer = react.useRef(null)
       const connInited = react.useRef(false)
-      const addrAt = react.useRef('')
-      const tokenAt = react.useRef('')
+      const savedAt = react.useRef({ addr: '', token: '' })
+      const appliedAt = react.useRef({ addr: '', token: '' })
       react.useEffect(() => {
         if (!st || connInited.current) return
         const addr = `${st.host || '127.0.0.1'}:${st.port || '3001'}`
         connInited.current = true
-        addrAt.current = addr
-        tokenAt.current = String(st.token || '')
+        savedAt.current = { addr, token: String(st.token || '') }
+        appliedAt.current = { addr, token: String(st.token || '') }
         setAddrIn(addr)
         setTokenIn(String(st.token || ''))
       }, [st])
@@ -121,16 +122,24 @@ window.__ModuleLoader__.load({
         else if (raw) { port = raw }
         const tok = (tokenIn || '').trim()
         const addr = `${host}:${port}`
-        if (addr === addrAt.current && tok === tokenAt.current) return
-        addrAt.current = addr
-        tokenAt.current = tok
-        await api('POST', '/save', { DSH_QQ_HOST: host, DSH_QQ_WS_PORT: port, DSH_QQ_TOKEN: tok })
-        if (apply) { setBusy('/apply'); await api('POST', '/apply'); setBusy('') }
-        setTimeout(() => { void load() }, 1200)
+
+        if (addr !== savedAt.current.addr || tok !== savedAt.current.token) {
+          await api('POST', '/save', { DSH_QQ_HOST: host, DSH_QQ_WS_PORT: port, DSH_QQ_TOKEN: tok })
+          savedAt.current = { addr, token: tok }
+        }
+        if (!apply) return
+        if (addr === appliedAt.current.addr && tok === appliedAt.current.token) return
+        appliedAt.current = { addr, token: tok }
+        setBusy('/apply')
+        await api('POST', '/apply')
+        setBusy('')
+        setTimeout(() => { void load() }, 1500)
       }
       const queueSave = () => {
         if (saveTimer.current) clearTimeout(saveTimer.current)
-        saveTimer.current = setTimeout(() => { void saveConn(false) }, 700)
+        saveTimer.current = setTimeout(() => { void saveConn(false) }, 600)
+        if (applyTimer.current) clearTimeout(applyTimer.current)
+        applyTimer.current = setTimeout(() => { void saveConn(true) }, 2200)
       }
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
       const post = async (path, body) => {
