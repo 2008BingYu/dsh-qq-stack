@@ -53,9 +53,10 @@ window.__ModuleLoader__.load({
 .fs-name{font-size:16px;font-weight:600;margin-top:4px}
 .fs-uin{font-size:12px;opacity:.55}
 .fs-btn.fs-danger{margin-top:8px;color:#d93025;border-color:rgba(217,48,37,.35)}
-.fs-tabs{display:flex;gap:6px;margin-bottom:10px}
-.fs-tab{flex:1;padding:8px 0;border:none;border-radius:9px;background:rgba(127,127,127,.12);color:inherit;font-size:13px;opacity:.7}
-.fs-tab-on{background:#12b7f5;color:#fff;opacity:1}
+.fs-tabs{display:flex;gap:20px;border-bottom:1px solid rgba(127,127,127,.22);margin-bottom:12px}
+.fs-tab{background:none;border:none;padding:8px 2px 10px;font-size:14px;color:inherit;opacity:.55;position:relative;flex:none}
+.fs-tab-on{opacity:1;font-weight:600}
+.fs-tab-on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:#12b7f5}
 .fs-clean{display:block;width:100%;padding:14px;margin-top:12px;border:none;border-radius:12px;background:rgba(127,127,127,.10);color:#c0392b;font-size:14px;font-weight:500}
 .fs-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:99;padding:32px}
 .fs-dialog{background:#f7f7f8;color:#111;border-radius:16px;padding:20px 18px 14px;width:100%;max-width:290px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
@@ -96,18 +97,26 @@ window.__ModuleLoader__.load({
 
       const [askWipe, setAskWipe] = react.useState(false)
       const [tab, setTab] = react.useState('')
-      const [portIn, setPortIn] = react.useState('')
+      const [addrIn, setAddrIn] = react.useState('')
       const [tokenIn, setTokenIn] = react.useState('')
+      const saveTimer = react.useRef(null)
       react.useEffect(() => {
-        if (st) { setPortIn(String(st.port || '3001')); setTokenIn(String(st.token || '')) }
+        if (st) { setAddrIn(`${st.host || '127.0.0.1'}:${st.port || '3001'}`); setTokenIn(String(st.token || '')) }
       }, [st])
-      const saveConn = async () => {
-        setBusy('/save')
-        await api('POST', '/save', { DSH_QQ_WS_PORT: portIn.trim() || '3001', DSH_QQ_TOKEN: tokenIn.trim() })
-        await api('POST', '/apply')
-        setBusy('')
-        setEditConn(false)
-        setTimeout(() => { void load() }, 1500)
+      const saveConn = async (apply) => {
+        let host = '127.0.0.1'
+        let port = '3001'
+        const raw = (addrIn || '').trim().replace(/^wss?:\/\//, '')
+        const cut = raw.lastIndexOf(':')
+        if (cut > 0) { host = raw.slice(0, cut) || '127.0.0.1'; port = raw.slice(cut + 1) || '3001' }
+        else if (raw) { port = raw }
+        await api('POST', '/save', { DSH_QQ_HOST: host, DSH_QQ_WS_PORT: port, DSH_QQ_TOKEN: (tokenIn || '').trim() })
+        if (apply) { setBusy('/apply'); await api('POST', '/apply'); setBusy('') }
+        setTimeout(() => { void load() }, 1200)
+      }
+      const queueSave = () => {
+        if (saveTimer.current) clearTimeout(saveTimer.current)
+        saveTimer.current = setTimeout(() => { void saveConn(false) }, 700)
       }
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
       const post = async (path, body) => {
@@ -174,17 +183,26 @@ window.__ModuleLoader__.load({
         (st?.installed && !st?.installing && page === 'settings') ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-sec-title' }, '连接设置'),
           h('div', { className: 'fs-field-row' },
-            h('div', { className: 'fs-field-label' }, '端口'),
-            h('input', { className: 'fs-input', value: portIn, onChange: (e) => setPortIn(e.target.value), inputMode: 'numeric', placeholder: '3001' }),
+            h('div', { className: 'fs-field-label' }, '地址'),
+            h('input', {
+              className: 'fs-input',
+              value: addrIn,
+              onChange: (e) => { setAddrIn(e.target.value); queueSave() },
+              onBlur: () => saveConn(true),
+              placeholder: '127.0.0.1:3001',
+            }),
           ),
           h('div', { className: 'fs-field-row' },
             h('div', { className: 'fs-field-label' }, '令牌'),
-            h('input', { className: 'fs-input', value: tokenIn, onChange: (e) => setTokenIn(e.target.value), placeholder: '留空表示不校验' }),
+            h('input', {
+              className: 'fs-input',
+              value: tokenIn,
+              onChange: (e) => { setTokenIn(e.target.value); queueSave() },
+              onBlur: () => saveConn(true),
+              placeholder: '留空表示不校验',
+            }),
           ),
-          h('div', { className: 'fs-hint fs-field-tip' }, '改完点保存，会用新配置重启一次 QQ（不用重新扫码）'),
-          h('div', { className: 'fs-btns' },
-            h('button', { className: 'fs-btn fs-primary', onClick: saveConn }, busy === '/save' ? '保存中…' : '保存并重启 QQ'),
-          ),
+          h('div', { className: 'fs-hint fs-field-tip' }, '输入后自动保存；离开输入框会用新配置重启一次 QQ'),
         ) : null,
         (st?.installed && page === 'settings') ? h('button', { className: 'fs-clean', onClick: () => setAskWipe(true) }, '清理运行环境') : null,
         askWipe ? h('div', { className: 'fs-mask' },
