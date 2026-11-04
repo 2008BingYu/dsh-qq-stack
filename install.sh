@@ -25,7 +25,7 @@ speed_of() {
 
 pick_mirror() {
   local best="" bestv=0 u v
-  echo "[progress] 测速中 0%" >&2
+  echo "[progress] 测速中" >&2
   for u in $NAPCAT_MIRRORS; do
     v=$(speed_of "$u")
     case "$v" in ''|*[!0-9.]*) v=0 ;; esac
