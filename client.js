@@ -44,8 +44,7 @@ window.__ModuleLoader__.load({
 .fs-name{font-size:16px;font-weight:600;margin-top:4px}
 .fs-uin{font-size:12px;opacity:.55}
 .fs-btn.fs-danger{margin-top:8px;color:#d93025;border-color:rgba(217,48,37,.35)}
-.fs-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.fs-head-title{font-size:14px;font-weight:600}
+.fs-head{display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px}
 .fs-more{width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:inherit;font-size:18px;line-height:1}
 .fs-menu{position:relative;display:flex;flex-direction:column;background:rgba(127,127,127,.12);border-radius:10px;margin-bottom:10px}
 .fs-menu-item{text-align:left;padding:10px 12px;border:none;background:transparent;color:inherit;font-size:14px}
@@ -95,7 +94,6 @@ window.__ModuleLoader__.load({
 
       return h('div', { className: 'fs-wrap' },
         h('div', { className: 'fs-head' },
-          h('div', { className: 'fs-head-title' }, 'QQ 底座'),
           h('button', { className: 'fs-more', onClick: () => { setMenu(!menu); setConfirmWipe(false) } }, '⋮'),
         ),
         menu ? h('div', { className: 'fs-menu' },
