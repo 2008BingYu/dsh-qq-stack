@@ -48,7 +48,10 @@ window.__ModuleLoader__.load({
 .fs-login{display:flex;flex-direction:column;gap:10px}
 .fs-field{width:100%;box-sizing:border-box;border:0;border-bottom:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;padding:10px 2px;font-size:15px;outline:none}
 .fs-wide{padding:11px}
-.fs-sep{text-align:center;font-size:12px;opacity:.5;margin-top:6px}`
+.fs-sep{text-align:center;font-size:12px;opacity:.5;margin-top:6px}
+.fs-install{font-size:14px;font-weight:600;margin-bottom:6px}
+.fs-bar{height:6px;border-radius:3px;background:rgba(127,127,127,.2);overflow:hidden;margin:8px 0 6px}
+.fs-bar-in{height:100%;background:#12b7f5;border-radius:3px;transition:width .4s}`
 
     function Panel() {
       const [st, setSt] = react.useState(null)
@@ -59,7 +62,11 @@ window.__ModuleLoader__.load({
         const d = await api('GET', '/status')
         if (d?.ok) { setSt(d); setErr(false) } else setErr(true)
       }
-      react.useEffect(() => { void load(); const t = setInterval(load, 5000); return () => clearInterval(t) }, [])
+      react.useEffect(() => { void load() }, [])
+      react.useEffect(() => {
+        const t = setInterval(load, st?.installing ? 1500 : 5000)
+        return () => clearInterval(t)
+      }, [st?.installing])
 
       const post = async (path, body) => {
         setBusy(path)
@@ -78,10 +85,19 @@ window.__ModuleLoader__.load({
           row('OneBot 端口', !!st?.qq, st?.qq ? '已监听' : '未监听'),
           row('登录状态', logged, logged ? `已登录 ${st?.nickname || ''} ${st?.uin || ''}` : '未登录'),
         ),
-        !logged ? h('div', { className: 'fs-card fs-center' },
+        (st?.installed !== false && !st?.installing && !logged) ? h('div', { className: 'fs-card fs-center' },
           st?.qrAt
             ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
             : h('div', { className: 'fs-hint' }, '正在生成二维码…'),
+        ) : null,
+        (st && (!st.installed || st.installing)) ? h('div', { className: 'fs-card' },
+          h('div', { className: 'fs-install' },
+            st.installing ? `正在安装 ${st.installLabel || 'QQ 运行环境'}…` : '运行环境未就绪'),
+          (st.installPct >= 0) ? h('div', { className: 'fs-bar' },
+            h('div', { className: 'fs-bar-in', style: { width: `${Math.max(2, Math.min(100, st.installPct))}%` } }),
+          ) : null,
+          h('div', { className: 'fs-hint' },
+            st.installPct >= 0 ? `${st.installPct}%` : (st.installTail || '首次安装约 250MB，请稍候')),
         ) : null,
         logged ? h('div', { className: 'fs-card fs-account' },
           h('img', {

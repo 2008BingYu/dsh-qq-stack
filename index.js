@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync, statSync, readdirSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, statSync, readdirSync, unlinkSync, mkdirSync, openSync } from 'node:fs'
 import { readFileSync as rf } from 'node:fs'
 
 export const name = 'dsh-qq-stack'
@@ -102,6 +102,16 @@ async function probeLogin(port, token, force) {
   return probeCache
 }
 
+
+function spawnSafe(cmd, args, opts) {
+  try {
+    const child = spawn(cmd, args, opts)
+    child.on('error', () => {})
+    child.unref()
+    return child
+  } catch { return null }
+}
+
 function alive(pid) {
   if (!pid) return false
   try { process.kill(pid, 0); return true } catch { return false }
@@ -113,6 +123,7 @@ export function apply(ctx, pluginConfig = {}) {
 
 function applyInner(ctx, pluginConfig = {}) {
   const cfg = resolveConfig(pluginConfig)
+  try { mkdirSync(cfg.root, { recursive: true }) } catch {}
   const log = (msg) => { try { ctx.logger?.info?.(msg); if (process.env.DSH_QQ_DEBUG) console.log(msg) } catch {} }
   log(`[qq-stack] 激活 root=${cfg.root} uin=${cfg.uin || '(空)'} autoInstall=${cfg.autoInstall}`)
 
@@ -131,8 +142,7 @@ function applyInner(ctx, pluginConfig = {}) {
       if (alive(pid)) return
       const script = `${cfg.root}/start-qq.sh`
       if (!existsSync(script)) return
-      const child = spawn('bash', [script], { cwd: cfg.root, detached: true, stdio: 'ignore', env })
-      child.unref()
+      const child = spawnSafe('bash', [script], { cwd: cfg.root, detached: true, stdio: 'ignore', env })
       log('[qq-stack] 拉起 QQ')
     } catch (e) { log(`[qq-stack] 启动失败：${e?.message ?? e}`) }
   }
@@ -144,8 +154,10 @@ function applyInner(ctx, pluginConfig = {}) {
     if (!existsSync(installer)) { log('[qq-stack] 找不到 install.sh'); return }
     log('[qq-stack] 首次安装开始（LinuxQQ + NapCat，约 250MB）')
     try {
-      const child = spawn('bash', [installer], { cwd: cfg.root, detached: true, stdio: 'ignore', env })
-      child.unref()
+      mkdirSync(`${cfg.root}/logs`, { recursive: true })
+      const fd = openSync(`${cfg.root}/logs/install.log`, 'a')
+      const child = spawnSafe('bash', [installer], { cwd: cfg.root, detached: true, stdio: ['ignore', fd, fd], env })
+      if (child?.pid) { try { writeFileSync(`${cfg.root}/install.pid`, String(child.pid)) } catch {} }
     } catch (e) { log(`[qq-stack] 安装启动失败：${e?.message ?? e}`) }
   }
 
@@ -155,8 +167,7 @@ function applyInner(ctx, pluginConfig = {}) {
       let pid = 0
       try { pid = Number(readFileSync(watchPid, 'utf8').trim()) || 0 } catch {}
       if (alive(pid)) return
-      const child = spawn(process.execPath, [`${SELF}watch.mjs`, SELF, cfg.root], { detached: true, stdio: 'ignore' })
-      child.unref()
+      const child = spawnSafe(process.execPath, [`${SELF}watch.mjs`, SELF, cfg.root], { detached: true, stdio: 'ignore' })
       try { writeFileSync(watchPid, String(child.pid)) } catch {}
     } catch (e) { log(`[qq-stack] 卸载清理器启动失败：${e?.message ?? e}`) }
   }, 'dsh-qq-stack: uninstall-watch')
@@ -177,7 +188,7 @@ function applyInner(ctx, pluginConfig = {}) {
         if (healed && Date.now() - lastHealAt > 90000) {
           lastHealAt = Date.now()
           log('[qq-stack] 补齐 OneBot 配置，重启 QQ')
-          try { spawn('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }).unref() } catch {}
+          spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
         }
       } catch (e) { log(`[qq-stack] 巡检失败：${e?.message ?? e}`) }
     }, 60000)
@@ -215,6 +226,24 @@ function applyInner(ctx, pluginConfig = {}) {
             const pidM = statSync(`${cfg.root}/qq.pid`).mtimeMs
             if (qrM >= pidM) qrAt = Math.floor(qrM)
           } catch {}
+          let installing = false
+          try { installing = alive(Number(readFileSync(`${cfg.root}/install.pid`, 'utf8').trim())) } catch {}
+          let installed = existsSync(`${cfg.root}/opt/opt/QQ/qq`)
+          let installTail = ''
+          let installLabel = ''
+          let installPct = -1
+          try {
+            const raw = readFileSync(`${cfg.root}/logs/install.log`, 'utf8')
+            const lines = raw.split(/[\r\n]+/).map((x) => x.trim()).filter(Boolean)
+            const prog = [...lines].reverse().find((l) => l.startsWith('[progress]'))
+            if (prog) {
+              const m = prog.match(/\[progress\]\s+(.*?)\s+(\d+)%/)
+              if (m) { installLabel = m[1]; installPct = Number(m[2]) }
+              installTail = prog.slice(11).trim()
+            } else {
+              installTail = lines.slice(-1).join(' ').slice(-160)
+            }
+          } catch {}
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token) : { loggedIn: false, nickname: '' }
           if (login.loggedIn) {
             const qqUin = detectedUin || envFile.DSH_QQ_UIN || ''
@@ -228,7 +257,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const healed = ensureOnebot(cfg.root, portNum, tokenVal)
           if (healed && !login.loggedIn && Date.now() - lastHealAt > 90000) {
             lastHealAt = Date.now()
-            try { spawn('bash', ['-c', `bash stop-qq.sh; bash start-qq.sh`], { cwd: cfg.root, detached: true, stdio: 'ignore' }).unref() } catch {}
+            spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           }
           const probeFresh = Date.now() - (probeCache.at || 0) < 6000
           if (login.loggedIn && login.uin && probeFresh && envFile.DSH_QQ_UIN !== login.uin) {
@@ -237,7 +266,7 @@ function applyInner(ctx, pluginConfig = {}) {
               writeFileSync(`${cfg.root}/config.env`, Object.entries(e2).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
             } catch {}
           }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (envFile.DSH_QQ_UIN || detectedUin), port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (envFile.DSH_QQ_UIN || detectedUin), installed, installing, installTail, installLabel, installPct, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
@@ -283,11 +312,11 @@ function applyInner(ctx, pluginConfig = {}) {
             if (existsSync(auth)) unlinkSync(auth)
           } catch {}
           probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
-          try { spawn('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }).unref() } catch {}
+          spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           return json({ ok: true })
         }
         if (req.method === 'POST' && p === '/restart') {
-          try { spawn('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }).unref() } catch {}
+          spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           return json({ ok: true })
         }
         json({ ok: false }, 404)

@@ -19,6 +19,46 @@ DSH_QQ_TOKEN=$TOKEN
 EOF
 fi
 
+speed_of() {
+  curl -sL -r 0-262144 -o /dev/null --connect-timeout 6 --max-time 8 -w '%{speed_download}' "$1" 2>/dev/null || echo 0
+}
+
+pick_mirror() {
+  local best="" bestv=0 u v
+  echo "[progress] 测速中 0%" >&2
+  for u in $NAPCAT_MIRRORS; do
+    v=$(speed_of "$u")
+    case "$v" in ''|*[!0-9.]*) v=0 ;; esac
+    if awk -v a="$v" -v b="$bestv" 'BEGIN{exit !(a>b)}'; then best="$u"; bestv="$v"; fi
+  done
+  echo "[progress] 选源 $(( ${bestv%.*} / 1024 ))KB/s" >&2
+  echo "$best"
+}
+
+dl() {
+  local url="$1" out="$2" label="$3" expect="${4:-0}" total cur pid
+  echo "[progress] $label 0%"
+  total=$(curl -sIL --connect-timeout 8 --max-time 15 "$url" 2>/dev/null | awk 'tolower($1)=="content-length:"{print $2}' | tail -1)
+  curl -fL --retry 3 --connect-timeout 15 -o "$out" "$url" >/dev/null 2>&1 &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    cur=$(stat -c %s "$out" 2>/dev/null || echo 0)
+    if [ -n "${total:-}" ] && [ "$total" -gt 0 ] 2>/dev/null; then
+      echo "[progress] $label $(( cur * 100 / total ))% ($(( cur / 1048576 ))/$(( total / 1048576 ))MB)"
+    else
+      if [ "$expect" -gt 0 ] 2>/dev/null; then
+        echo "[progress] $label $(( cur * 100 / (expect * 1048576) ))% ($(( cur / 1048576 ))/${expect}MB)"
+      else
+        echo "[progress] $label $(( cur / 1048576 ))MB"
+      fi
+    fi
+    sleep 2
+  done
+  wait "$pid" || return 1
+  echo "[progress] $label 100%"
+  return 0
+}
+
 say() { echo "[install $(date +%H:%M:%S)] $*"; }
 
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
@@ -30,20 +70,18 @@ esac
 QQ_VER="3.2.34-53644"
 QQ_DEB_URL="https://qqdl.gtimg.cn/qqfile/QQNT/9.9.36/beta/9ee04bef/linuxqq_${QQ_VER}_${QQ_ARCH}.deb"
 NAPCAT_ZIP="https://github.com/NapNeko/NapCatQQ/releases/latest/download/NapCat.Shell.zip"
-
-missing=""
-for p in xvfb libnss3 libgbm1 libasound2t64 libgtk-3-0 dbus-x11 unzip curl; do
-  dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"
-done
-if [ -n "$missing" ]; then
-  say "安装依赖：$missing"
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -qq && apt-get install -y $missing || { say "依赖安装失败"; exit 1; }
-fi
+NAPCAT_MIRRORS="
+https://github.com/NapNeko/NapCatQQ/releases/latest/download/NapCat.Shell.zip
+https://gh-proxy.com/$NAPCAT_ZIP
+https://ghfast.top/$NAPCAT_ZIP
+https://ghproxy.net/$NAPCAT_ZIP
+https://gh-proxy.org/$NAPCAT_ZIP
+https://hub.gitmirror.com/$NAPCAT_ZIP
+"
 
 if [ ! -x "$ROOT/opt/opt/QQ/qq" ]; then
   say "下载 LinuxQQ ${QQ_ARCH}（约 200MB）"
-  curl -fL --retry 3 -o /tmp/QQ.deb "$QQ_DEB_URL" || { say "LinuxQQ 下载失败"; exit 1; }
+  dl "$QQ_DEB_URL" /tmp/QQ.deb "LinuxQQ" 198 || { say "LinuxQQ 下载失败"; exit 1; }
   dpkg -x /tmp/QQ.deb "$ROOT/opt" || { say "解包失败"; exit 1; }
   rm -f /tmp/QQ.deb
 else
@@ -52,14 +90,42 @@ fi
 
 QQ_APP="$ROOT/opt/opt/QQ/resources/app"
 
+ensure_deps() {
+  need=0
+  command -v xvfb-run >/dev/null 2>&1 || need=1
+  command -v dbus-run-session >/dev/null 2>&1 || need=1
+  if [ -x "$ROOT/opt/opt/QQ/qq" ] && ldd "$ROOT/opt/opt/QQ/qq" 2>/dev/null | grep -q "not found"; then
+    need=1
+  fi
+  [ "$need" = 0 ] && return 0
+  say "补齐运行依赖"
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq || true
+  pkgs=""
+  for p in xvfb dbus-x11 libnss3 libgbm1 libasound2t64 libasound2 libgtk-3-0t64 libgtk-3-0 \
+           libxss1 libxtst6 libdrm2 libxkbcommon0 libcups2 libpango-1.0-0 libcairo2 \
+           libatk1.0-0 libatk-bridge2.0-0 libxdamage1 libxrandr2 libatspi2.0-0 libnspr4 \
+           libxcomposite1 libxfixes3 libxrender1; do
+    apt-cache show "$p" >/dev/null 2>&1 && pkgs="$pkgs $p"
+  done
+  apt-get install -y $pkgs || { say "依赖安装失败"; exit 1; }
+}
+
+ensure_deps
+
 if [ ! -f "$QQ_APP/app_launcher/napcat/napcat.mjs" ]; then
   say "下载 NapCat"
   if [ -f /tmp/NapCat.Shell.zip ] && unzip -t /tmp/NapCat.Shell.zip >/dev/null 2>&1; then
     say "复用已下载的 NapCat 包"
   else
-  curl -fL --retry 2 -o /tmp/NapCat.Shell.zip "$NAPCAT_ZIP" \
-    || curl -fL --retry 2 -o /tmp/NapCat.Shell.zip "https://gh-proxy.com/$NAPCAT_ZIP" \
-    || { say "NapCat 下载失败"; exit 1; }
+  MIRROR=$(pick_mirror)
+  if [ -n "$MIRROR" ]; then
+    say "使用镜像：$MIRROR"
+    dl "$MIRROR" /tmp/NapCat.Shell.zip "NapCat" 35 || { say "NapCat 下载失败"; exit 1; }
+  else
+    say "所有源都不可用"
+    exit 1
+  fi
   fi
   rm -rf /tmp/napcat-unzip && mkdir -p /tmp/napcat-unzip
   unzip -q -o /tmp/NapCat.Shell.zip -d /tmp/napcat-unzip || { say "NapCat 解压失败"; exit 1; }
@@ -160,4 +226,3 @@ fi
 chmod +x "$ROOT"/*.sh
 say "安装完成，启动 QQ"
 bash "$ROOT/start-qq.sh"
-say "完成（首次需要扫码，之后启动会走 ${UIN:-未设置账号} 的快速登录）"

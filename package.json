@@ -1,6 +1,6 @@
 {
   "name": "dsh-qq-stack",
-  "version": "0.1.2",
+  "version": "0.1.0",
   "type": "module",
   "main": "./index.js",
   "description": "DeepSeek Harness 的 QQ 协议端底座：LinuxQQ + NapCat 随引擎自启，扫码一次后自动快登。",
