@@ -176,7 +176,7 @@ function applyInner(ctx, pluginConfig = {}) {
       if (alive(pid)) return
       const script = `${cfg.root}/start-qq.sh`
       if (!existsSync(script)) return
-      try { ensureOnebotFor(cfg.root, cfg.uin, cfg.wsPort, cfg.token) } catch {}
+      try { ensureOnebotFor(cfg.root, cfg.uin, cfg.wsPort, cfg.token); ensureOnebot(cfg.root, cfg.wsPort, cfg.token) } catch {}
       const child = spawnSafe('bash', [script], { cwd: cfg.root, detached: true, stdio: 'ignore', env })
       log('[qq-stack] 拉起 QQ')
     } catch (e) { log(`[qq-stack] 启动失败：${e?.message ?? e}`) }
