@@ -28,7 +28,11 @@ speed_of() {
 pick_mirror() {
   local best="" bestv=0 u v
   echo "[progress] 测速中" >&2
+  local i=0 total=0
+  total=$(echo "$NAPCAT_MIRRORS" | grep -c .)
   for u in $NAPCAT_MIRRORS; do
+    i=$((i+1))
+    echo "[progress] 测速 $i/$total" >&2
     v=$(speed_of "$u")
     case "$v" in ''|*[!0-9.]*) v=0 ;; esac
     if awk -v a="$v" -v b="$bestv" 'BEGIN{exit !(a>b)}'; then best="$u"; bestv="$v"; fi
@@ -82,6 +86,7 @@ https://hub.gitmirror.com/$NAPCAT_ZIP
 "
 
 if [ ! -x "$ROOT/opt/opt/QQ/qq" ]; then
+  echo "[step] linuxqq"
   say "下载 LinuxQQ ${QQ_ARCH}（约 200MB）"
   dl "$QQ_DEB_URL" /tmp/QQ.deb "LinuxQQ" 198 || { say "LinuxQQ 下载失败"; exit 1; }
   dpkg -x /tmp/QQ.deb "$ROOT/opt" || { say "解包失败"; exit 1; }
@@ -116,6 +121,7 @@ ensure_deps() {
 ensure_deps
 
 if [ ! -f "$QQ_APP/app_launcher/napcat/napcat.mjs" ]; then
+  echo "[step] napcat"
   say "下载 NapCat"
   if [ -f /tmp/NapCat.Shell.zip ] && unzip -t /tmp/NapCat.Shell.zip >/dev/null 2>&1; then
     say "复用已下载的 NapCat 包"
@@ -138,6 +144,7 @@ else
   say "NapCat 已存在，跳过"
 fi
 
+echo "[step] patch"
 cat > "$QQ_APP/loadNapCat.js" <<'EOF'
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -262,5 +269,6 @@ fi
 chmod +x "$ROOT"/*.sh
 if [ -n "${UIN:-}" ]; then write_onebot "$UIN"; fi
 touch "$ROOT/.installed"
+echo "[step] start"
 say "安装完成，启动 QQ"
 bash "$ROOT/start-qq.sh"
