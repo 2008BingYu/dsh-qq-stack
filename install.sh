@@ -187,6 +187,29 @@ if ! ls "$CFG_DIR"/onebot11_*.json >/dev/null 2>&1; then
   write_onebot "${UIN:-default}"
 fi
 
+cat > "$ROOT/fix-onebot.mjs" <<'EOFJS'
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const root = process.argv[2] || '/root/qq-bot'
+const port = Number(process.env.DSH_QQ_WS_PORT || 3001)
+const token = process.env.DSH_QQ_TOKEN || ''
+const dir = join(root, 'opt/opt/QQ/resources/app/app_launcher/napcat/config')
+let files = []
+try { files = readdirSync(dir) } catch { process.exit(0) }
+for (const f of files) {
+  if (!/^onebot11_\d{5,12}\.json$/.test(f)) continue
+  const p = join(dir, f)
+  let d = {}
+  try { d = JSON.parse(readFileSync(p, 'utf8')) } catch { continue }
+  d.network = d.network || {}
+  const ws = Array.isArray(d.network.websocketServers) ? d.network.websocketServers : []
+  if (ws.some((x) => Number(x.port) === port && x.enable !== false)) continue
+  d.network.websocketServers = [{ name: 'dsh', enable: true, host: '127.0.0.1', port, messagePostFormat: 'array', reportSelfMessage: false, token, debug: false, heartInterval: 30000, enableForcePushEvent: true }]
+  try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {}
+}
+EOFJS
+
 if [ ! -f "$ROOT/start-qq.sh" ]; then
 cat > "$ROOT/start-qq.sh" <<EOF
 #!/bin/bash
@@ -199,6 +222,7 @@ export XDG_CONFIG_HOME="\$HOME/.config" XDG_DATA_HOME="\$HOME/.local/share" XDG_
 export XDG_RUNTIME_DIR="$ROOT/data/runtime"
 export ELECTRON_DISABLE_SANDBOX=1
 [ -n "\${DSH_QQ_UIN:-}" ] && export NAPCAT_QUICK_ACCOUNT="\$DSH_QQ_UIN"
+if command -v node >/dev/null 2>&1 && [ -f fix-onebot.mjs ]; then node fix-onebot.mjs "$(pwd)" 2>/dev/null || true; fi
 if [ -f qq.pid ] && kill -0 "\$(cat qq.pid)" 2>/dev/null; then echo "QQ 已在运行"; exit 0; fi
 cd opt/opt/QQ
 setsid dbus-run-session -- xvfb-run -a -s "-screen 0 1280x800x24" ./qq \\
