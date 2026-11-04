@@ -44,6 +44,9 @@ window.__ModuleLoader__.load({
 .fs-name{font-size:16px;font-weight:600;margin-top:4px}
 .fs-uin{font-size:12px;opacity:.55}
 .fs-btn.fs-danger{margin-top:8px;color:#d93025;border-color:rgba(217,48,37,.35)}
+.fs-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:99;padding:24px}
+.fs-dialog{background:#fff;color:#111;border-radius:14px;padding:18px;max-width:320px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+.fs-dialog-title{font-size:16px;font-weight:600;margin-bottom:8px}
 .fs-btns-col{flex-direction:column;width:100%;margin-top:14px}
 .fs-primary{background:#12b7f5}
 .fs-login{display:flex;flex-direction:column;gap:10px}
@@ -69,6 +72,7 @@ window.__ModuleLoader__.load({
         return () => clearInterval(t)
       }, [st?.installing])
 
+      const [askWipe, setAskWipe] = react.useState(false)
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
       const applyFix = async () => {
         setBusy('/apply')
@@ -106,6 +110,21 @@ window.__ModuleLoader__.load({
           ) : null,
           h('div', { className: 'fs-hint' },
             st.installPct >= 0 ? `${st.installPct}%` : (st.installTail || '首次安装约 250MB，请稍候')),
+        ) : null,
+        st?.installed ? h('div', { className: 'fs-card' },
+          h('div', { className: 'fs-btns fs-btns-col' },
+            h('button', { className: 'fs-btn', onClick: () => setAskWipe(true) }, '清理运行环境'),
+          ),
+        ) : null,
+        askWipe ? h('div', { className: 'fs-mask' },
+          h('div', { className: 'fs-dialog' },
+            h('div', { className: 'fs-dialog-title' }, '清理运行环境？'),
+            h('div', { className: 'fs-hint' }, '会停掉 QQ，并删掉已下载的客户端和登录数据（约 1GB）。下次要重新扫码。'),
+            h('div', { className: 'fs-btns' },
+              h('button', { className: 'fs-btn', onClick: () => setAskWipe(false) }, '取消'),
+              h('button', { className: 'fs-btn fs-danger', onClick: () => { setAskWipe(false); void post('/wipe') } }, '清理'),
+            ),
+          ),
         ) : null,
         logged ? h('div', { className: 'fs-card fs-account' },
           h('img', {
