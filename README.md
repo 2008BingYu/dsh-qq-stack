@@ -54,3 +54,13 @@ dsh plugin --profile web add dsh-qq-stack
 ## 许可
 
 MIT
+
+## 卸载
+
+插件卸载后，后台会有一个清理器（20 秒内）自动停掉 QQ、删掉 `~/.dsh/qq-bot`（含 700MB+ 的客户端和登录数据）。
+
+如果想立刻清，也可以在卸载前手动执行：
+
+```bash
+bash ~/.dsh/qq-bot/stop-qq.sh && rm -rf ~/.dsh/qq-bot
+```
