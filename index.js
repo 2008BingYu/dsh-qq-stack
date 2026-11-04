@@ -58,8 +58,6 @@ function resolveConfig(config = {}) {
 }
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
-let qrRefreshedFor = 0
-let qrRefreshCount = 0
 let healing = false
 async function probeLogin(port, token, force) {
   const ttl = probeCache.loggedIn ? 15000 : 3000
@@ -147,6 +145,15 @@ function detectAccount(root) {
     }
   } catch {}
   return best
+}
+
+function qrToken(root) {
+  try {
+    const txt = readFileSync(`${root}/logs/qq.log`, 'utf8').slice(-20000)
+    const m = [...txt.matchAll(/txz\.qq\.com\/p\?k=([A-Za-z0-9*_-]+)/g)]
+    if (!m.length) return ''
+    return m[m.length - 1][1].slice(0, 24)
+  } catch { return '' }
 }
 
 function scanState(root) {
@@ -314,12 +321,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false }
-          if (!login.loggedIn && qq && !installing && qrAt && qrAge > 150 && !scan.scanned && qrRefreshedFor !== qrAt && qrRefreshCount < 6) {
-            qrRefreshedFor = qrAt
-            qrRefreshCount += 1
-            spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
-          }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge })
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
