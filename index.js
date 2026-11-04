@@ -183,7 +183,7 @@ function applyInner(ctx, pluginConfig = {}) {
   }
 
   const ensureInstalled = () => {
-    if (existsSync(`${cfg.root}/opt/opt/QQ/qq`)) return ensureStarted()
+    if (existsSync(`${cfg.root}/opt/opt/QQ/qq`) && existsSync(`${cfg.root}/start-qq.sh`)) return ensureStarted()
     try {
       const running = Number(readFileSync(`${cfg.root}/install.pid`, 'utf8').trim()) || 0
       if (running && alive(running)) { log('[qq-stack] 安装已在进行中，跳过'); return }
@@ -276,7 +276,7 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch {}
           let installing = false
           try { installing = alive(Number(readFileSync(`${cfg.root}/install.pid`, 'utf8').trim())) } catch {}
-          let installed = existsSync(`${cfg.root}/opt/opt/QQ/qq`)
+          let installed = existsSync(`${cfg.root}/opt/opt/QQ/qq`) && existsSync(`${cfg.root}/start-qq.sh`)
           let installTail = ''
           let installLabel = ''
           let installPct = -1
@@ -348,6 +348,16 @@ function applyInner(ctx, pluginConfig = {}) {
             spawnSafe('bash', ['-c', `bash "${cfg.root}/stop-qq.sh" 2>/dev/null; rm -rf "${cfg.root}"`], { detached: true, stdio: 'ignore' })
           } catch {}
           probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
+          return json({ ok: true })
+        }
+        if (req.method === 'POST' && p === '/install') {
+          const installer = existsSync(`${cfg.root}/install.sh`) ? `${cfg.root}/install.sh` : `${SELF}install.sh`
+          try {
+            mkdirSync(`${cfg.root}/logs`, { recursive: true })
+            const fd = openSync(`${cfg.root}/logs/install.log`, 'a')
+            const child = spawnSafe('bash', [installer], { cwd: cfg.root, detached: true, stdio: ['ignore', fd, fd], env })
+            if (child?.pid) { try { writeFileSync(`${cfg.root}/install.pid`, String(child.pid)) } catch {} }
+          } catch {}
           return json({ ok: true })
         }
         if (req.method === 'POST' && p === '/apply') {
