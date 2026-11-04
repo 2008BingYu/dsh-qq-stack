@@ -225,7 +225,8 @@ function applyInner(ctx, pluginConfig = {}) {
                 log(`[qq-stack] 记住账号 ${acct}`)
               } catch {}
             }
-            const healed = ensureOnebot(cfg.root, port, token)
+            const created = ensureOnebotFor(cfg.root, acct, port, token)
+            const healed = ensureOnebot(cfg.root, port, token) || created
             if (healed) {
               healing = true
               log('[qq-stack] QQ 已登录但 OneBot 没起来，补配置并重启')
