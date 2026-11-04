@@ -316,10 +316,21 @@ function applyInner(ctx, pluginConfig = {}) {
           let installTail = ''
           let installLabel = ''
           let installPct = -1
+          let installStep = ''
+          let measurePct = -1
+          let linuxqqDone = existsSync(`${cfg.root}/opt/opt/QQ/qq`)
+          let napcatDone = existsSync(`${cfg.root}/opt/opt/QQ/resources/app/app_launcher/napcat/napcat.mjs`)
           try {
             const raw = readFileSync(`${cfg.root}/logs/install.log`, 'utf8')
             const lines = raw.split(/[\r\n]+/).map((x) => x.trim()).filter(Boolean)
-            const prog = [...lines].reverse().find((l) => l.startsWith('[progress]'))
+            const stepLine = [...lines].reverse().find((l) => l.startsWith('[step] '))
+            if (stepLine) installStep = stepLine.slice(7).trim()
+            const mline = [...lines].reverse().find((l) => /\[progress\]\s+测速\s+\d+\/\d+/.test(l))
+            if (mline) {
+              const mm = mline.match(/测速\s+(\d+)\/(\d+)/)
+              if (mm) measurePct = Math.round((Number(mm[1]) / Number(mm[2])) * 100)
+            }
+            const prog = [...lines].reverse().find((l) => l.startsWith('[progress]') && !l.includes('测速'))
             if (prog) {
               const m = prog.match(/\[progress\]\s+(.*?)\s+(\d+)%/)
               if (m) { installLabel = m[1]; installPct = Number(m[2]) }
@@ -331,7 +342,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false, authorized: false }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, authorized: !!scan.authorized, installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
             port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
         }
         if (req.method === 'GET' && p === '/qr.png') {
