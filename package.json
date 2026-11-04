@@ -1,0 +1,47 @@
+{
+  "name": "dsh-qq-stack",
+  "version": "0.1.1",
+  "type": "module",
+  "main": "./index.js",
+  "description": "DeepSeek Harness 的 QQ 协议端底座：LinuxQQ + NapCat 随引擎自启，扫码一次后自动快登。",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "qq",
+    "napcat",
+    "onebot"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "install.sh",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "slots"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --input-type=module -e \"await import('./index.js')\""
+  }
+}

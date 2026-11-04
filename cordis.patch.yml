@@ -1,0 +1,4 @@
+# dsh-qq-stack bundle patch: 挂载插件
+- insert:
+    - id: dsh-qq-stack
+      name: dsh-qq-stack
