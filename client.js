@@ -39,6 +39,7 @@ window.__ModuleLoader__.load({
 .fs-qrmask-text{color:rgba(255,255,255,.85);font-size:13px}
 .fs-qr{width:min(62vw,240px);height:auto;border-radius:12px;background:#fff;padding:8px}
 .fs-hint{font-size:12px;opacity:.6}
+.fs-conn{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .fs-input{width:100%;box-sizing:border-box;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;border-radius:9px;padding:9px;font-size:14px}
 .fs-btns{display:flex;gap:8px;margin-top:12px}
 .fs-btn[disabled]{opacity:.55}
@@ -88,10 +89,24 @@ window.__ModuleLoader__.load({
       }, [st?.installing])
 
       const [askWipe, setAskWipe] = react.useState(false)
+      const [editConn, setEditConn] = react.useState(false)
+      const [portIn, setPortIn] = react.useState('')
+      const [tokenIn, setTokenIn] = react.useState('')
+      react.useEffect(() => {
+        if (!editConn && st) { setPortIn(String(st.port || '3001')); setTokenIn(String(st.token || '')) }
+      }, [st, editConn])
+      const saveConn = async () => {
+        setBusy('/save')
+        await api('POST', '/save', { DSH_QQ_WS_PORT: portIn.trim() || '3001', DSH_QQ_TOKEN: tokenIn.trim() })
+        await api('POST', '/apply')
+        setBusy('')
+        setEditConn(false)
+        setTimeout(() => { void load() }, 1500)
+      }
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
-      const post = async (path) => {
+      const post = async (path, body) => {
         setBusy(path)
-        const r = await api('POST', path)
+        const r = await api('POST', path, body)
         if (path === '/wipe' && r && r.ok) {
           setSt({ ok: true, qq: false, wsUp: false, loggedIn: false, installed: false, installedBefore: false, installing: false, qrAt: 0 })
         }
@@ -143,6 +158,21 @@ window.__ModuleLoader__.load({
           ) : null,
           h('div', { className: 'fs-hint' },
             st.installPct >= 0 ? `${st.installPct}%` : (st.installTail || '首次安装约 250MB，请稍候')),
+        ) : null,
+        (st?.installed && !st?.installing) ? h('div', { className: 'fs-card' },
+          h('div', { className: 'fs-row', onClick: () => setEditConn(!editConn) },
+            h('div', null, '连接设置'),
+            h('div', { className: 'fs-hint' }, editConn ? '收起' : `${st.port} · ${st.token ? '有令牌' : '无令牌'}`),
+          ),
+          editConn ? h('div', { className: 'fs-conn' },
+            h('div', { className: 'fs-hint' }, '端口'),
+            h('input', { className: 'fs-input', value: portIn, onChange: (e) => setPortIn(e.target.value), inputMode: 'numeric', placeholder: '3001' }),
+            h('div', { className: 'fs-hint' }, '令牌（留空表示不校验）'),
+            h('input', { className: 'fs-input', value: tokenIn, onChange: (e) => setTokenIn(e.target.value), placeholder: '留空则不校验' }),
+            h('div', { className: 'fs-btns' },
+              h('button', { className: 'fs-btn fs-primary', onClick: saveConn }, busy === '/save' ? '保存中…' : '保存并重启 QQ'),
+            ),
+          ) : null,
         ) : null,
         st?.installed ? h('button', { className: 'fs-clean', onClick: () => setAskWipe(true) }, '清理运行环境') : null,
         askWipe ? h('div', { className: 'fs-mask' },
