@@ -58,6 +58,7 @@ function resolveConfig(config = {}) {
 }
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
+let healing = false
 async function probeLogin(port, token, force) {
   if (!force && Date.now() - probeCache.at < 15000) return probeCache
   const result = await new Promise((resolve) => {
@@ -108,6 +109,27 @@ function portOpen(port, timeout = 400) {
   })
 }
 
+function ensureOnebotFor(root, uin, port, token) {
+  if (!uin) return false
+  try {
+    mkdirSync(cfgDir(root), { recursive: true })
+    const p = `${cfgDir(root)}/onebot11_${uin}.json`
+    if (existsSync(p)) return false
+    writeFileSync(p, JSON.stringify({
+      network: {
+        httpServers: [], httpSseServers: [], httpClients: [], websocketClients: [], plugins: [],
+        websocketServers: [{
+          name: 'dsh', enable: true, host: '127.0.0.1', port: Number(port),
+          messagePostFormat: 'array', reportSelfMessage: false, token,
+          debug: false, heartInterval: 30000, enableForcePushEvent: true,
+        }],
+      },
+      musicSignUrl: '', enableLocalFile2Url: false, parseMultMsg: false, imageDownloadProxy: '',
+    }, null, 2))
+    return true
+  } catch { return false }
+}
+
 function detectAccount(root) {
   let pidAt = 0
   try { pidAt = statSync(`${root}/qq.pid`).mtimeMs } catch {}
@@ -154,6 +176,7 @@ function applyInner(ctx, pluginConfig = {}) {
       if (alive(pid)) return
       const script = `${cfg.root}/start-qq.sh`
       if (!existsSync(script)) return
+      try { ensureOnebotFor(cfg.root, cfg.uin, cfg.wsPort, cfg.token) } catch {}
       const child = spawnSafe('bash', [script], { cwd: cfg.root, detached: true, stdio: 'ignore', env })
       log('[qq-stack] 拉起 QQ')
     } catch (e) { log(`[qq-stack] 启动失败：${e?.message ?? e}`) }
@@ -201,6 +224,24 @@ function applyInner(ctx, pluginConfig = {}) {
           if (guess) {
             writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: guess }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
             log(`[qq-stack] 从数据目录识别到账号 ${guess}`)
+          }
+        }
+        if (login.loggedIn) healing = false
+        if (!login.loggedIn && !healing) {
+          const acct = detectAccount(cfg.root)
+          if (acct) {
+            if (!envFile.DSH_QQ_UIN) {
+              try {
+                writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: acct }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
+                log(`[qq-stack] 记住账号 ${acct}`)
+              } catch {}
+            }
+            const healed = ensureOnebot(cfg.root, port, token)
+            if (healed) {
+              healing = true
+              log('[qq-stack] QQ 已登录但 OneBot 没起来，补配置并重启')
+              spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
+            }
           }
         }
         if (login.loggedIn && login.uin && envFile.DSH_QQ_UIN !== login.uin) {
