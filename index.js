@@ -277,6 +277,7 @@ function applyInner(ctx, pluginConfig = {}) {
           let installing = false
           try { installing = alive(Number(readFileSync(`${cfg.root}/install.pid`, 'utf8').trim())) } catch {}
           let installed = existsSync(`${cfg.root}/opt/opt/QQ/qq`) && existsSync(`${cfg.root}/start-qq.sh`)
+          const installedBefore = existsSync(`${cfg.root}/.installed`)
           let installTail = ''
           let installLabel = ''
           let installPct = -1
@@ -294,7 +295,7 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch {}
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token) : { loggedIn: false, nickname: '' }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installing, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
