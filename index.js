@@ -283,10 +283,12 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch {}
           const qr = `${cfg.root}/opt/opt/QQ/resources/app/app_launcher/napcat/cache/qrcode.png`
           let qrAt = 0
+          let qrAge = 0
           try {
             const qrM = statSync(qr).mtimeMs
             const pidM = statSync(`${cfg.root}/qq.pid`).mtimeMs
             if (qrM >= pidM) qrAt = Math.floor(qrM)
+            qrAge = Math.max(0, Math.round((Date.now() - qrM) / 1000))
           } catch {}
           let installing = false
           try { installing = alive(Number(readFileSync(`${cfg.root}/install.pid`, 'utf8').trim())) } catch {}
@@ -310,7 +312,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
@@ -386,6 +388,10 @@ function applyInner(ctx, pluginConfig = {}) {
             ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '')
           } catch {}
           try { spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }) } catch {}
+          return json({ ok: true })
+        }
+        if (req.method === 'POST' && p === '/refresh-qr') {
+          spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           return json({ ok: true })
         }
         if (req.method === 'POST' && p === '/restart') {
