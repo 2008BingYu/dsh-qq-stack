@@ -91,8 +91,11 @@ window.__ModuleLoader__.load({
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
       const post = async (path) => {
         setBusy(path)
-        await api('POST', path)
-        await new Promise((resolve) => setTimeout(resolve, 1200))
+        const r = await api('POST', path)
+        if (path === '/wipe' && r && r.ok) {
+          setSt({ ok: true, qq: false, wsUp: false, loggedIn: false, installed: false, installedBefore: false, installing: false, qrAt: 0 })
+        }
+        await new Promise((resolve) => setTimeout(resolve, 800))
         await load()
         setBusy('')
       }
