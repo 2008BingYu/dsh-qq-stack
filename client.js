@@ -39,7 +39,6 @@ window.__ModuleLoader__.load({
 .fs-qrmask-text{color:rgba(255,255,255,.85);font-size:13px}
 .fs-qr{width:min(62vw,240px);height:auto;border-radius:12px;background:#fff;padding:8px}
 .fs-hint{font-size:12px;opacity:.6}
-.fs-notice{font-size:12px;color:#2f6fed;background:rgba(47,111,237,.10);padding:8px 10px;border-radius:8px}
 .fs-input{width:100%;box-sizing:border-box;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;border-radius:9px;padding:9px;font-size:14px}
 .fs-btns{display:flex;gap:8px;margin-top:12px}
 .fs-btn[disabled]{opacity:.55}
@@ -77,7 +76,6 @@ window.__ModuleLoader__.load({
       const [st, setSt] = react.useState(null)
       const [busy, setBusy] = react.useState('')
       const [err, setErr] = react.useState(false)
-      const [notice, setNotice] = react.useState('')
 
       const load = async () => {
         const d = await api('GET', '/status')
@@ -91,22 +89,15 @@ window.__ModuleLoader__.load({
 
       const [askWipe, setAskWipe] = react.useState(false)
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
-      const post = async (path, okText, failText) => {
+      const post = async (path) => {
         setBusy(path)
-        setNotice('')
-        const r = await api('POST', path)
-        if (!r || r.ok === false) {
-          setNotice(failText || '操作失败，请重试')
-          setBusy('')
-          return
-        }
-        if (okText) setNotice(okText)
+        await api('POST', path)
         await new Promise((resolve) => setTimeout(resolve, 1200))
         await load()
         setBusy('')
       }
 
-      const applyFix = () => post('/apply', '正在应用配置并重启 QQ…')
+      const applyFix = () => post('/apply')
 
       const qrUrl = st?.qrAt ? `${API}/qr.png?t=${st.qrAt}` : `${API}/qr.png`
       const logged = !!st?.loggedIn
@@ -114,7 +105,6 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'fs-wrap' },
         h('style', null, CSS),
         err ? h('div', { className: 'fs-hint' }, '状态获取失败，稍后自动重试') : null,
-        notice ? h('div', { className: 'fs-notice' }, notice) : null,
         h('div', { className: 'fs-card' },
           row('QQ 进程', !!st?.qq, st?.qq ? '运行中' : '未运行'),
           row('OneBot 端口', !!st?.wsUp, st?.wsUp ? '已监听' : '未监听'),
@@ -124,7 +114,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'fs-qrbox' },
             st?.qrAt
               ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
-              : h('div', { className: 'fs-hint' }, st?.qq ? '正在登录…' : 'QQ 正在启动…'),
+              : h('div', { className: 'fs-hint' }, st?.qq ? '正在准备二维码…' : 'QQ 正在启动…'),
             (st?.qrAt && st?.scanned) ? h('div', { className: 'fs-qrmask' },
               h('div', { className: 'fs-qrmask-title' }, '已扫码'),
               h('div', { className: 'fs-qrmask-text' }, '请在手机上点「允许登录」'),
@@ -137,7 +127,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'fs-hint' },
             st.installedBefore ? '可以直接重试，已经下好的部分会复用' : '首次安装约 250MB，需要几分钟'),
           h('div', { className: 'fs-btns' },
-            h('button', { className: 'fs-btn fs-primary', disabled: busy === '/install', onClick: () => post('/install', '已开始安装…', '启动安装失败，请重试') },
+            h('button', { className: 'fs-btn fs-primary', disabled: busy === '/install', onClick: () => post('/install') },
               busy === '/install' ? '安装中…' : (st.installedBefore ? '重新安装' : '开始安装')),
           ),
         ) : null,
@@ -157,7 +147,7 @@ window.__ModuleLoader__.load({
             h('div', { className: 'fs-dialog-text' }, '会停掉 QQ，并删掉已下载的客户端和登录数据。下次需要重新扫码。'),
             h('div', { className: 'fs-dialog-btns' },
               h('button', { className: 'fs-dbtn', onClick: () => setAskWipe(false) }, '取消'),
-              h('button', { className: 'fs-dbtn fs-dbtn-danger', onClick: () => { setAskWipe(false); void post('/wipe', '已开始清理…', '清理失败，请重试') } }, '清理'),
+              h('button', { className: 'fs-dbtn fs-dbtn-danger', onClick: () => { setAskWipe(false); void post('/wipe') } }, '清理'),
             ),
           ),
         ) : null,
@@ -170,7 +160,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'fs-name' }, st?.nickname || '已登录'),
           h('div', { className: 'fs-uin' }, st?.uin ? `QQ ${st.uin}` : ''),
           h('div', { className: 'fs-btns fs-btns-col' },
-            h('button', { className: 'fs-btn fs-primary', onClick: () => post('/logout', '已退出，正在等待新账号扫码', '退出登录失败，请重试') },
+            h('button', { className: 'fs-btn fs-primary', onClick: () => post('/logout') },
               busy === '/logout' ? '切换中…' : '切换账号'),
           ),
         ) : null,
