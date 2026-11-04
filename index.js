@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
+import net from 'node:net'
 import { existsSync, readFileSync, writeFileSync, statSync, readdirSync, unlinkSync, mkdirSync, openSync } from 'node:fs'
-import { readFileSync as rf } from 'node:fs'
 
 export const name = 'dsh-qq-stack'
 export const inject = ['webServer']
@@ -32,22 +32,6 @@ function ensureOnebot(root, port, token) {
   return changed
 }
 
-function sessionLoginUin(root) {
-  let pidAt = 0
-  try { pidAt = statSync(`${root}/qq.pid`).mtimeMs } catch {}
-  let best = '', bestAt = 0
-  try {
-    for (const f of readdirSync(cfgDir(root))) {
-      const m = f.match(/^napcat_(\d{5,12})\.json$/)
-      if (!m) continue
-      const at = statSync(`${cfgDir(root)}/${f}`).mtimeMs
-      if (at >= pidAt && at > bestAt) { bestAt = at; best = m[1] }
-    }
-  } catch {}
-  return best
-}
-
-let lastHealAt = 0
 
 function readEnvFile(root) {
   const out = {}
@@ -112,6 +96,18 @@ function spawnSafe(cmd, args, opts) {
   } catch { return null }
 }
 
+function portOpen(port, timeout = 400) {
+  return new Promise((resolve) => {
+    const sock = new net.Socket()
+    let done = false
+    const finish = (v) => { if (!done) { done = true; try { sock.destroy() } catch {} resolve(v) } }
+    sock.setTimeout(timeout, () => finish(false))
+    sock.on('connect', () => finish(true))
+    sock.on('error', () => finish(false))
+    try { sock.connect(port, '127.0.0.1') } catch { finish(false) }
+  })
+}
+
 function alive(pid) {
   if (!pid) return false
   try { process.kill(pid, 0); return true } catch { return false }
@@ -149,6 +145,10 @@ function applyInner(ctx, pluginConfig = {}) {
 
   const ensureInstalled = () => {
     if (existsSync(`${cfg.root}/opt/opt/QQ/qq`)) return ensureStarted()
+    try {
+      const running = Number(readFileSync(`${cfg.root}/install.pid`, 'utf8').trim()) || 0
+      if (running && alive(running)) { log('[qq-stack] 安装已在进行中，跳过'); return }
+    } catch {}
     if (!cfg.autoInstall) { log('[qq-stack] 未安装且 autoInstall=false，跳过'); return }
     const installer = existsSync(`${cfg.root}/install.sh`) ? `${cfg.root}/install.sh` : `${SELF}install.sh`
     if (!existsSync(installer)) { log('[qq-stack] 找不到 install.sh'); return }
@@ -167,7 +167,8 @@ function applyInner(ctx, pluginConfig = {}) {
       let pid = 0
       try { pid = Number(readFileSync(watchPid, 'utf8').trim()) || 0 } catch {}
       if (alive(pid)) return
-      const child = spawnSafe(process.execPath, [`${SELF}watch.mjs`, SELF, cfg.root], { detached: true, stdio: 'ignore' })
+      const profileDir = new URL('../..', import.meta.url).pathname
+      const child = spawnSafe(process.execPath, [`${SELF}watch.mjs`, profileDir, cfg.root], { detached: true, stdio: 'ignore' })
       try { writeFileSync(watchPid, String(child.pid)) } catch {}
     } catch (e) { log(`[qq-stack] 卸载清理器启动失败：${e?.message ?? e}`) }
   }, 'dsh-qq-stack: uninstall-watch')
@@ -183,12 +184,6 @@ function applyInner(ctx, pluginConfig = {}) {
           const next = { ...envFile, DSH_QQ_UIN: login.uin }
           writeFileSync(`${cfg.root}/config.env`, Object.entries(next).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
           log(`[qq-stack] 记住快登号 ${login.uin}`)
-        }
-        const healed = ensureOnebot(cfg.root, port, token)
-        if (healed && Date.now() - lastHealAt > 90000) {
-          lastHealAt = Date.now()
-          log('[qq-stack] 补齐 OneBot 配置，重启 QQ')
-          spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
         }
       } catch (e) { log(`[qq-stack] 巡检失败：${e?.message ?? e}`) }
     }, 60000)
@@ -244,29 +239,9 @@ function applyInner(ctx, pluginConfig = {}) {
               installTail = lines.slice(-1).join(' ').slice(-160)
             }
           } catch {}
+          const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token) : { loggedIn: false, nickname: '' }
-          if (login.loggedIn) {
-            const qqUin = detectedUin || envFile.DSH_QQ_UIN || ''
-            if (qqUin && envFile.DSH_QQ_UIN !== qqUin) {
-              const env2 = { ...envFile, DSH_QQ_UIN: qqUin }
-              writeFileSync(`${cfg.root}/config.env`, Object.entries(env2).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
-            }
-          }
-          const portNum = Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001)
-          const tokenVal = envFile.DSH_QQ_TOKEN || cfg.token
-          const healed = ensureOnebot(cfg.root, portNum, tokenVal)
-          if (healed && !login.loggedIn && Date.now() - lastHealAt > 90000) {
-            lastHealAt = Date.now()
-            spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
-          }
-          const probeFresh = Date.now() - (probeCache.at || 0) < 6000
-          if (login.loggedIn && login.uin && probeFresh && envFile.DSH_QQ_UIN !== login.uin) {
-            try {
-              const e2 = { ...envFile, DSH_QQ_UIN: login.uin }
-              writeFileSync(`${cfg.root}/config.env`, Object.entries(e2).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
-            } catch {}
-          }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (envFile.DSH_QQ_UIN || detectedUin), installed, installing, installTail, installLabel, installPct, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (envFile.DSH_QQ_UIN || detectedUin), installed, installing, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
@@ -280,7 +255,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const qr = `${cfg.root}/opt/opt/QQ/resources/app/app_launcher/napcat/cache/qrcode.png`
           if (!existsSync(qr)) { res.writeHead(404); return res.end() }
           res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' })
-          return res.end(rf(qr))
+          return res.end(readFileSync(qr))
         }
         if (req.method === 'POST' && p === '/save') {
           let body = ''
@@ -313,6 +288,14 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch {}
           probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
           spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
+          return json({ ok: true })
+        }
+        if (req.method === 'POST' && p === '/apply') {
+          try {
+            const envFile = readEnvFile(cfg.root)
+            ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '')
+          } catch {}
+          try { spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }) } catch {}
           return json({ ok: true })
         }
         if (req.method === 'POST' && p === '/restart') {
