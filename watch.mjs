@@ -21,5 +21,5 @@ function cleanup() {
 setInterval(() => {
   if (present()) { goneSince = 0; return }
   if (!goneSince) { goneSince = Date.now(); return }
-  if (Date.now() - goneSince > 180000) { cleanup(); process.exit(0) }
+  if (Date.now() - goneSince > 60000) { cleanup(); process.exit(0) }
 }, 20000)
