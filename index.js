@@ -313,7 +313,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false }
-          if (!login.loggedIn && qq && !installing && qrAt && qrAge > 120 && !scan.scanned && qrRefreshedFor !== qrAt) {
+          if (!login.loggedIn && qq && !installing && qrAt && qrAge > 240 && !scan.scanned && qrRefreshedFor !== qrAt) {
             qrRefreshedFor = qrAt
             spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           }
