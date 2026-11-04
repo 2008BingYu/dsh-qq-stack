@@ -248,7 +248,7 @@ function applyInner(ctx, pluginConfig = {}) {
           }
         }
         if (login.loggedIn) healing = false
-        if (!login.loggedIn && !healing) {
+        if (!login.loggedIn && !healing && scan.authorized) {
           const acct = detectAccount(cfg.root)
           if (acct) {
             if (!envFile.DSH_QQ_UIN) {
