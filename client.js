@@ -121,6 +121,8 @@ window.__ModuleLoader__.load({
             ) : null,
           ),
           st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : '用手机 QQ 扫码，并点允许登录') : null,
+          (st?.qrAt && !st?.scanned) ? h('button', { className: 'fs-clean', onClick: () => post('/refresh-qr') },
+            (st?.qrAge >= 100) ? '二维码可能过期了，点这里刷新' : '刷新二维码') : null,
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' }, st.installedBefore ? '上次安装没完成' : '还没安装'),
