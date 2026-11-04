@@ -110,7 +110,10 @@ window.__ModuleLoader__.load({
         const cut = raw.lastIndexOf(':')
         if (cut > 0) { host = raw.slice(0, cut) || '127.0.0.1'; port = raw.slice(cut + 1) || '3001' }
         else if (raw) { port = raw }
-        await api('POST', '/save', { DSH_QQ_HOST: host, DSH_QQ_WS_PORT: port, DSH_QQ_TOKEN: (tokenIn || '').trim() })
+        const tok = (tokenIn || '').trim()
+        const same = st && String(st.host || '127.0.0.1') === host && String(st.port || '3001') === port && String(st.token || '') === tok
+        if (same) return
+        await api('POST', '/save', { DSH_QQ_HOST: host, DSH_QQ_WS_PORT: port, DSH_QQ_TOKEN: tok })
         if (apply) { setBusy('/apply'); await api('POST', '/apply'); setBusy('') }
         setTimeout(() => { void load() }, 1200)
       }
