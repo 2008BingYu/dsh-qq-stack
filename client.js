@@ -39,7 +39,10 @@ window.__ModuleLoader__.load({
 .fs-qrmask-text{color:rgba(255,255,255,.85);font-size:13px}
 .fs-qr{width:min(62vw,240px);height:auto;border-radius:12px;background:#fff;padding:8px}
 .fs-hint{font-size:12px;opacity:.6}
-.fs-conn{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.fs-sec-title{font-size:14px;font-weight:600;margin-bottom:12px}
+.fs-field-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.fs-field-label{width:44px;font-size:13px;opacity:.65;flex:none}
+.fs-field-tip{margin:-2px 0 12px}
 .fs-input{width:100%;box-sizing:border-box;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;border-radius:9px;padding:9px;font-size:14px}
 .fs-btns{display:flex;gap:8px;margin-top:12px}
 .fs-btn[disabled]{opacity:.55}
@@ -53,7 +56,7 @@ window.__ModuleLoader__.load({
 .fs-tabs{display:flex;gap:6px;margin-bottom:10px}
 .fs-tab{flex:1;padding:8px 0;border:none;border-radius:9px;background:rgba(127,127,127,.12);color:inherit;font-size:13px;opacity:.7}
 .fs-tab-on{background:#12b7f5;color:#fff;opacity:1}
-.fs-clean{display:block;width:100%;padding:14px;margin-top:2px;border:none;border-radius:12px;background:rgba(127,127,127,.10);color:#c0392b;font-size:14px;font-weight:500}
+.fs-clean{display:block;width:100%;padding:14px;margin-top:12px;border:none;border-radius:12px;background:rgba(127,127,127,.10);color:#c0392b;font-size:14px;font-weight:500}
 .fs-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:99;padding:32px}
 .fs-dialog{background:#f7f7f8;color:#111;border-radius:16px;padding:20px 18px 14px;width:100%;max-width:290px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
 .fs-dialog-title{font-size:16px;font-weight:600;margin-bottom:10px}
@@ -93,12 +96,11 @@ window.__ModuleLoader__.load({
 
       const [askWipe, setAskWipe] = react.useState(false)
       const [tab, setTab] = react.useState('')
-      const [editConn, setEditConn] = react.useState(false)
       const [portIn, setPortIn] = react.useState('')
       const [tokenIn, setTokenIn] = react.useState('')
       react.useEffect(() => {
-        if (!editConn && st) { setPortIn(String(st.port || '3001')); setTokenIn(String(st.token || '')) }
-      }, [st, editConn])
+        if (st) { setPortIn(String(st.port || '3001')); setTokenIn(String(st.token || '')) }
+      }, [st])
       const saveConn = async () => {
         setBusy('/save')
         await api('POST', '/save', { DSH_QQ_WS_PORT: portIn.trim() || '3001', DSH_QQ_TOKEN: tokenIn.trim() })
@@ -169,20 +171,20 @@ window.__ModuleLoader__.load({
           h('div', { className: 'fs-hint' },
             st.installPct >= 0 ? `${st.installPct}%` : (st.installTail || '首次安装约 250MB，请稍候')),
         ) : null,
-        (st?.installed && !st?.installing) ? h('div', { className: 'fs-card' },
-          h('div', { className: 'fs-row', onClick: () => setEditConn(!editConn) },
-            h('div', null, '连接设置'),
-            h('div', { className: 'fs-hint' }, editConn ? '收起' : `${st.port} · ${st.token ? '有令牌' : '无令牌'}`),
-          ),
-          editConn ? h('div', { className: 'fs-conn' },
-            h('div', { className: 'fs-hint' }, '端口'),
+        (st?.installed && !st?.installing && page === 'settings') ? h('div', { className: 'fs-card' },
+          h('div', { className: 'fs-sec-title' }, '连接设置'),
+          h('div', { className: 'fs-field-row' },
+            h('div', { className: 'fs-field-label' }, '端口'),
             h('input', { className: 'fs-input', value: portIn, onChange: (e) => setPortIn(e.target.value), inputMode: 'numeric', placeholder: '3001' }),
-            h('div', { className: 'fs-hint' }, '令牌（留空表示不校验）'),
-            h('input', { className: 'fs-input', value: tokenIn, onChange: (e) => setTokenIn(e.target.value), placeholder: '留空则不校验' }),
-            h('div', { className: 'fs-btns' },
-              h('button', { className: 'fs-btn fs-primary', onClick: saveConn }, busy === '/save' ? '保存中…' : '保存并重启 QQ'),
-            ),
-          ) : null,
+          ),
+          h('div', { className: 'fs-field-row' },
+            h('div', { className: 'fs-field-label' }, '令牌'),
+            h('input', { className: 'fs-input', value: tokenIn, onChange: (e) => setTokenIn(e.target.value), placeholder: '留空表示不校验' }),
+          ),
+          h('div', { className: 'fs-hint fs-field-tip' }, '改完点保存，会用新配置重启一次 QQ（不用重新扫码）'),
+          h('div', { className: 'fs-btns' },
+            h('button', { className: 'fs-btn fs-primary', onClick: saveConn }, busy === '/save' ? '保存中…' : '保存并重启 QQ'),
+          ),
         ) : null,
         (st?.installed && page === 'settings') ? h('button', { className: 'fs-clean', onClick: () => setAskWipe(true) }, '清理运行环境') : null,
         askWipe ? h('div', { className: 'fs-mask' },
