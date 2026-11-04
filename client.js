@@ -33,6 +33,10 @@ window.__ModuleLoader__.load({
 .fs-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 .fs-on{background:#39d98a}.fs-off{background:#ff5c5c}
 .fs-center{display:flex;flex-direction:column;align-items:center;gap:8px}
+.fs-qrbox{position:relative;display:flex;align-items:center;justify-content:center}
+.fs-qrmask{position:absolute;inset:0;background:rgba(0,0,0,.72);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.fs-qrmask-title{color:#fff;font-size:16px;font-weight:600}
+.fs-qrmask-text{color:rgba(255,255,255,.85);font-size:13px}
 .fs-qr{width:min(62vw,240px);height:auto;border-radius:12px;background:#fff;padding:8px}
 .fs-hint{font-size:12px;opacity:.6}
 .fs-input{width:100%;box-sizing:border-box;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;border-radius:9px;padding:9px;font-size:14px}
@@ -109,10 +113,16 @@ window.__ModuleLoader__.load({
           row('登录状态', logged, logged ? `已登录 ${st?.nickname || ''} ${st?.uin || ''}` : '未登录'),
         ),
         (st?.installed && !st?.installing && !logged) ? h('div', { className: 'fs-card fs-center' },
-          st?.qrAt
-            ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
-            : h('div', { className: 'fs-hint' }, st?.qq ? '正在登录…' : 'QQ 正在启动…'),
-          st?.qrAt ? h('div', { className: 'fs-hint' }, '用手机 QQ 扫码，并点允许登录') : null,
+          h('div', { className: 'fs-qrbox' },
+            st?.qrAt
+              ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
+              : h('div', { className: 'fs-hint' }, st?.qq ? '正在登录…' : 'QQ 正在启动…'),
+            (st?.qrAt && st?.scanned) ? h('div', { className: 'fs-qrmask' },
+              h('div', { className: 'fs-qrmask-title' }, '已扫码'),
+              h('div', { className: 'fs-qrmask-text' }, '请在手机上点「允许登录」'),
+            ) : null,
+          ),
+          st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : '用手机 QQ 扫码，并点允许登录') : null,
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' }, st.installedBefore ? '上次安装没完成' : '还没安装'),
