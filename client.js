@@ -76,7 +76,7 @@ window.__ModuleLoader__.load({
 .fs-wide{padding:11px}
 .fs-sep{text-align:center;font-size:12px;opacity:.5;margin-top:6px}
 .fs-install{font-size:14px;font-weight:600;margin-bottom:6px}
-.fs-step{margin-top:14px}
+.fs-step{margin:0}
 .fs-step-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .fs-step-label{font-size:13px}
 .fs-step-pct{font-size:12px;opacity:.6}
@@ -206,6 +206,8 @@ window.__ModuleLoader__.load({
         (st?.installing) ? h('div', { className: 'fs-card' },
           row('LinuxQQ', !!st.linuxqqDone, st.linuxqqDone ? '已安装' : (st.installStep === 'linuxqq' ? '下载中' : '等待')),
           row('NapCat', !!st.napcatDone, st.napcatDone ? '已安装' : (st.installStep === 'napcat' ? '下载中' : '等待')),
+        ) : null,
+        (st?.installing) ? h('div', { className: 'fs-card' },
           (function () {
             const measuring = st.installStep === 'napcat' && st.measurePct >= 0 && st.measurePct < 100 && !st.napcatDone
             const pct = measuring ? st.measurePct : st.installPct
