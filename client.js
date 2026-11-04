@@ -111,13 +111,13 @@ window.__ModuleLoader__.load({
         (st?.installed && !st?.installing && !logged) ? h('div', { className: 'fs-card fs-center' },
           st?.qrAt
             ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
-            : h('div', { className: 'fs-hint' }, '正在生成二维码，约 10 秒…'),
+            : h('div', { className: 'fs-hint' }, st?.qq ? '正在登录…' : 'QQ 正在启动…'),
           st?.qrAt ? h('div', { className: 'fs-hint' }, '用手机 QQ 扫码，并点允许登录') : null,
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
-          h('div', { className: 'fs-install' }, st.installedBefore ? '安装中断了' : '还没安装'),
+          h('div', { className: 'fs-install' }, st.installedBefore ? '上次安装没完成' : '还没安装'),
           h('div', { className: 'fs-hint' },
-            st.installedBefore ? '上次安装没走完，点下面重试（不会重复下载已装好的部分）' : '首次安装约 250MB，需要几分钟'),
+            st.installedBefore ? '可以直接重试，已经下好的部分会复用' : '首次安装约 250MB，需要几分钟'),
           h('div', { className: 'fs-btns' },
             h('button', { className: 'fs-btn fs-primary', disabled: busy === '/install', onClick: () => post('/install') },
               busy === '/install' ? '安装中…' : (st.installedBefore ? '重新安装' : '开始安装')),
