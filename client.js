@@ -120,7 +120,7 @@ window.__ModuleLoader__.load({
               h('div', { className: 'fs-qrmask-text' }, '请在手机上点「允许登录」'),
             ) : null,
           ),
-          st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : (st?.qrAge > 240 ? '二维码过期，正在自动刷新…' : '用手机 QQ 扫码，并点允许登录')) : null,
+          st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : (st?.qrAge > 150 ? '二维码即将过期，正在刷新…' : '用手机 QQ 扫码，并点允许登录')) : null,
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' }, st.installedBefore ? '上次安装没完成' : '还没安装'),
