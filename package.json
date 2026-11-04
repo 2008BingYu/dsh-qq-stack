@@ -22,8 +22,7 @@
     "install.sh",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE",
-    "watch.mjs"
+    "LICENSE"
   ],
   "exports": {
     ".": "./index.js",
