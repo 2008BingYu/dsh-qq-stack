@@ -6,11 +6,11 @@ export const name = 'dsh-qq-stack'
 export const inject = ['webServer']
 
 const SELF = new URL('.', import.meta.url).pathname
-const DEFAULTS = { root: '/root/qq-bot', uin: '', wsPort: 3001, token: '' }
+const DEFAULTS = { root: '/root/qq-bot', uin: '', host: '127.0.0.1', wsPort: 3001, token: '' }
 
 function cfgDir(root) { return `${root}/opt/opt/QQ/resources/app/app_launcher/napcat/config` }
 
-function ensureOnebot(root, port, token) {
+function ensureOnebot(root, port, token, host = '127.0.0.1') {
   let changed = false
   let files = []
   try { files = readdirSync(cfgDir(root)) } catch { return false }
@@ -30,7 +30,7 @@ function ensureOnebot(root, port, token) {
       continue
     }
     cfg.network.websocketServers = [{
-      name: 'dsh', enable: true, host: '127.0.0.1', port: Number(port),
+      name: 'dsh', enable: true, host, port: Number(port),
       messagePostFormat: 'array', reportSelfMessage: false, token,
       debug: false, heartInterval: 30000, enableForcePushEvent: true,
     }]
@@ -58,6 +58,7 @@ function resolveConfig(config = {}) {
   return {
     root,
     uin: String(pick(config.uin, process.env.DSH_QQ_UIN, file.DSH_QQ_UIN ?? DEFAULTS.uin)),
+    host: String(pick(config.host, process.env.DSH_QQ_HOST, file.DSH_QQ_HOST ?? DEFAULTS.host)),
     wsPort: Number(pick(config.wsPort, process.env.DSH_QQ_WS_PORT, file.DSH_QQ_WS_PORT ?? DEFAULTS.wsPort)),
     token: String(pick(config.token, process.env.DSH_QQ_TOKEN, file.DSH_QQ_TOKEN ?? DEFAULTS.token)),
     autoInstall: config.autoInstall ?? true,
@@ -117,7 +118,7 @@ function portOpen(port, timeout = 400) {
   })
 }
 
-function ensureOnebotFor(root, uin, port, token) {
+function ensureOnebotFor(root, uin, port, token, host = '127.0.0.1') {
   if (!uin) return false
   try {
     mkdirSync(cfgDir(root), { recursive: true })
@@ -127,7 +128,7 @@ function ensureOnebotFor(root, uin, port, token) {
       network: {
         httpServers: [], httpSseServers: [], httpClients: [], websocketClients: [], plugins: [],
         websocketServers: [{
-          name: 'dsh', enable: true, host: '127.0.0.1', port: Number(port),
+          name: 'dsh', enable: true, host, port: Number(port),
           messagePostFormat: 'array', reportSelfMessage: false, token,
           debug: false, heartInterval: 30000, enableForcePushEvent: true,
         }],
@@ -195,6 +196,7 @@ function applyInner(ctx, pluginConfig = {}) {
     ...process.env,
     DSH_QQ_ROOT: cfg.root,
     DSH_QQ_UIN: cfg.uin,
+    DSH_QQ_HOST: cfg.host,
     DSH_QQ_WS_PORT: String(cfg.wsPort),
     DSH_QQ_TOKEN: cfg.token,
   }
@@ -206,7 +208,7 @@ function applyInner(ctx, pluginConfig = {}) {
       if (alive(pid)) return
       const script = `${cfg.root}/start-qq.sh`
       if (!existsSync(script)) return
-      try { ensureOnebotFor(cfg.root, cfg.uin, cfg.wsPort, cfg.token); ensureOnebot(cfg.root, cfg.wsPort, cfg.token) } catch {}
+      try { ensureOnebotFor(cfg.root, cfg.uin, cfg.wsPort, cfg.token, cfg.host); ensureOnebot(cfg.root, cfg.wsPort, cfg.token, cfg.host) } catch {}
       const child = spawnSafe('bash', [script], { cwd: cfg.root, detached: true, stdio: 'ignore', env })
       log('[qq-stack] 拉起 QQ')
     } catch (e) { log(`[qq-stack] 启动失败：${e?.message ?? e}`) }
@@ -255,7 +257,7 @@ function applyInner(ctx, pluginConfig = {}) {
                 log(`[qq-stack] 记住账号 ${acct}`)
               } catch {}
             }
-            const created = ensureOnebotFor(cfg.root, acct, port, token)
+            const created = ensureOnebotFor(cfg.root, acct, port, token, envFile.DSH_QQ_HOST || '127.0.0.1')
             const healed = ensureOnebot(cfg.root, port, token) || created
             if (healed) {
               healing = true
@@ -329,7 +331,8 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false, authorized: false }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, authorized: !!scan.authorized, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, scanned: !!scan.scanned, authorized: !!scan.authorized, installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
+            port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
@@ -352,7 +355,7 @@ function applyInner(ctx, pluginConfig = {}) {
             try {
               const v = JSON.parse(body || '{}')
               const allow = {}
-              for (const k of ['DSH_QQ_UIN', 'DSH_QQ_WS_PORT', 'DSH_QQ_TOKEN']) {
+              for (const k of ['DSH_QQ_UIN', 'DSH_QQ_HOST', 'DSH_QQ_WS_PORT', 'DSH_QQ_TOKEN']) {
                 if (typeof v[k] === 'string') allow[k] = v[k].replace(/[\r\n]/g, '')
               }
               const cur = readEnvFile(cfg.root)
@@ -401,7 +404,7 @@ function applyInner(ctx, pluginConfig = {}) {
             if (guess && envFile.DSH_QQ_UIN !== guess) {
               writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: guess }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
             }
-            ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '')
+            ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
           } catch {}
           try { spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }) } catch {}
           return json({ ok: true })
