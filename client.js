@@ -99,8 +99,7 @@ window.__ModuleLoader__.load({
       const [tab, setTab] = react.useState('')
       const [addrIn, setAddrIn] = react.useState('')
       const [tokenIn, setTokenIn] = react.useState('')
-      const saveTimer = react.useRef(null)
-      const applyTimer = react.useRef(null)
+      const focused = react.useRef(false)
       const connInited = react.useRef(false)
       const savedAt = react.useRef({ addr: '', token: '' })
       const appliedAt = react.useRef({ addr: '', token: '' })
@@ -135,12 +134,14 @@ window.__ModuleLoader__.load({
         setBusy('')
         setTimeout(() => { void load() }, 1500)
       }
-      const queueSave = () => {
-        if (saveTimer.current) clearTimeout(saveTimer.current)
-        saveTimer.current = setTimeout(() => { void saveConn(false) }, 600)
-        if (applyTimer.current) clearTimeout(applyTimer.current)
-        applyTimer.current = setTimeout(() => { void saveConn(true) }, 2200)
-      }
+      react.useEffect(() => {
+        if (page !== 'settings' || !st?.installed) return
+        const t = setInterval(() => {
+          if (focused.current) return
+          void saveConn(true)
+        }, 1500)
+        return () => clearInterval(t)
+      }, [page, st?.installed, addrIn, tokenIn])
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
       const post = async (path, body) => {
         setBusy(path)
@@ -210,8 +211,9 @@ window.__ModuleLoader__.load({
             h('input', {
               className: 'fs-input',
               value: addrIn,
-              onChange: (e) => { setAddrIn(e.target.value); queueSave() },
-              onBlur: () => saveConn(true),
+              onChange: (e) => setAddrIn(e.target.value),
+              onFocus: () => { focused.current = true },
+              onBlur: () => { focused.current = false },
               placeholder: '127.0.0.1:3001',
             }),
           ),
@@ -220,12 +222,13 @@ window.__ModuleLoader__.load({
             h('input', {
               className: 'fs-input',
               value: tokenIn,
-              onChange: (e) => { setTokenIn(e.target.value); queueSave() },
-              onBlur: () => saveConn(true),
+              onChange: (e) => setTokenIn(e.target.value),
+              onFocus: () => { focused.current = true },
+              onBlur: () => { focused.current = false },
               placeholder: '留空表示不校验',
             }),
           ),
-          h('div', { className: 'fs-hint fs-field-tip' }, '输入后自动保存；离开输入框会用新配置重启一次 QQ'),
+          h('div', { className: 'fs-hint fs-field-tip' }, '离开输入框后自动保存并重启 QQ 生效'),
         ) : null,
         (st?.installed && page === 'settings') ? h('button', { className: 'fs-clean', onClick: () => setAskWipe(true) }, '清理运行环境') : null,
         askWipe ? h('div', { className: 'fs-mask' },
