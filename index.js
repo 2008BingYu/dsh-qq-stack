@@ -200,17 +200,6 @@ function applyInner(ctx, pluginConfig = {}) {
     } catch (e) { log(`[qq-stack] 安装启动失败：${e?.message ?? e}`) }
   }
 
-  ctx.effect(() => {
-    try {
-      const watchPid = `${cfg.root}/watch.pid`
-      let pid = 0
-      try { pid = Number(readFileSync(watchPid, 'utf8').trim()) || 0 } catch {}
-      if (alive(pid)) return
-      const profileDir = new URL('../..', import.meta.url).pathname
-      const child = spawnSafe(process.execPath, [`${SELF}watch.mjs`, profileDir, cfg.root], { detached: true, stdio: 'ignore' })
-      try { writeFileSync(watchPid, String(child.pid)) } catch {}
-    } catch (e) { log(`[qq-stack] 卸载清理器启动失败：${e?.message ?? e}`) }
-  }, 'dsh-qq-stack: uninstall-watch')
 
   ctx.effect(() => {
     const timer = setInterval(async () => {
