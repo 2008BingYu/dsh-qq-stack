@@ -42,7 +42,6 @@ window.__ModuleLoader__.load({
 .fs-sec-title{font-size:14px;font-weight:600;margin-bottom:12px}
 .fs-field-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .fs-field-label{width:44px;font-size:13px;opacity:.65;flex:none}
-.fs-field-tip{margin:-2px 0 12px}
 .fs-input{width:100%;box-sizing:border-box;border:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;border-radius:9px;padding:9px;font-size:14px}
 .fs-btns{display:flex;gap:8px;margin-top:12px}
 .fs-btn[disabled]{opacity:.55}
@@ -134,14 +133,6 @@ window.__ModuleLoader__.load({
         setBusy('')
         setTimeout(() => { void load() }, 1500)
       }
-      react.useEffect(() => {
-        if (page !== 'settings' || !st?.installed) return
-        const t = setInterval(() => {
-          if (focused.current) return
-          void saveConn(true)
-        }, 1500)
-        return () => clearInterval(t)
-      }, [page, st?.installed, addrIn, tokenIn])
       const needApply = !!(st?.qq && st?.wsUp === false && !st?.installing && (st?.uin || st?.loggedIn))
       const post = async (path, body) => {
         setBusy(path)
@@ -160,6 +151,14 @@ window.__ModuleLoader__.load({
       const qrUrl = qrKey ? `${API}/qr.png?t=${encodeURIComponent(qrKey)}` : `${API}/qr.png`
       const logged = !!st?.loggedIn
       const page = tab || (logged ? 'settings' : 'login')
+      react.useEffect(() => {
+        if (page !== 'settings' || !st?.installed) return
+        const t = setInterval(() => {
+          if (focused.current) return
+          void saveConn(true)
+        }, 1500)
+        return () => clearInterval(t)
+      }, [page, st?.installed, addrIn, tokenIn])
       react.useEffect(() => { if (!st?.installed) setTab('') }, [st?.installed])
 
       return h('div', { className: 'fs-wrap' },
@@ -169,7 +168,8 @@ window.__ModuleLoader__.load({
           h('button', { className: 'fs-tab' + (page === 'settings' ? ' fs-tab-on' : ''), onClick: () => setTab('settings') }, '设置'),
         ) : null,
         err ? h('div', { className: 'fs-hint' }, '状态获取失败，稍后自动重试') : null,
-        (st?.installed && !st?.installing && page === 'login') ? h('div', { className: 'fs-card' },
+        (!st && !err) ? h('div', { className: 'fs-hint' }, '正在读取状态…') : null,
+        (st && !st?.installing && page === 'login') ? h('div', { className: 'fs-card' },
           row('QQ 进程', !!st?.qq, st?.qq ? '运行中' : '未运行'),
           row('OneBot 端口', !!st?.wsUp, st?.wsUp ? '已监听' : '未监听'),
           row('登录状态', logged, logged ? `已登录 ${st?.nickname || ''} ${st?.uin || ''}` : '未登录'),
@@ -228,7 +228,6 @@ window.__ModuleLoader__.load({
               placeholder: '留空表示不校验',
             }),
           ),
-          h('div', { className: 'fs-hint fs-field-tip' }, '离开输入框后自动保存并重启 QQ 生效'),
         ) : null,
         (st?.installed && page === 'settings') ? h('button', { className: 'fs-clean', onClick: () => setAskWipe(true) }, '清理运行环境') : null,
         askWipe ? h('div', { className: 'fs-mask' },
