@@ -108,6 +108,22 @@ function portOpen(port, timeout = 400) {
   })
 }
 
+function detectAccount(root) {
+  let pidAt = 0
+  try { pidAt = statSync(`${root}/qq.pid`).mtimeMs } catch {}
+  let best = ''
+  let bestAt = 0
+  try {
+    for (const f of readdirSync(cfgDir(root))) {
+      const m = f.match(/^napcat_(\d{5,12})\.json$/)
+      if (!m) continue
+      const at = statSync(`${cfgDir(root)}/${f}`).mtimeMs
+      if (at >= pidAt && at > bestAt) { bestAt = at; best = m[1] }
+    }
+  } catch {}
+  return best
+}
+
 function alive(pid) {
   if (!pid) return false
   try { process.kill(pid, 0); return true } catch { return false }
@@ -180,6 +196,13 @@ function applyInner(ctx, pluginConfig = {}) {
         const port = Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001)
         const token = envFile.DSH_QQ_TOKEN || cfg.token
         const login = await probeLogin(port, token, true)
+        if (!login.loggedIn && !envFile.DSH_QQ_UIN) {
+          const guess = detectAccount(cfg.root)
+          if (guess) {
+            writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: guess }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
+            log(`[qq-stack] 从数据目录识别到账号 ${guess}`)
+          }
+        }
         if (login.loggedIn && login.uin && envFile.DSH_QQ_UIN !== login.uin) {
           const next = { ...envFile, DSH_QQ_UIN: login.uin }
           writeFileSync(`${cfg.root}/config.env`, Object.entries(next).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
@@ -241,7 +264,7 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch {}
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token) : { loggedIn: false, nickname: '' }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (envFile.DSH_QQ_UIN || detectedUin), installed, installing, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installing, installTail, installLabel, installPct, wsUp, port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt })
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
@@ -293,6 +316,10 @@ function applyInner(ctx, pluginConfig = {}) {
         if (req.method === 'POST' && p === '/apply') {
           try {
             const envFile = readEnvFile(cfg.root)
+            const guess = envFile.DSH_QQ_UIN || detectAccount(cfg.root)
+            if (guess && envFile.DSH_QQ_UIN !== guess) {
+              writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: guess }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
+            }
             ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '')
           } catch {}
           try { spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }) } catch {}
