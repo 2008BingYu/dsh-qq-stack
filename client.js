@@ -99,7 +99,8 @@ window.__ModuleLoader__.load({
 
       const applyFix = () => post('/apply')
 
-      const qrUrl = st?.qrAt ? `${API}/qr.png?t=${st.qrAt}` : `${API}/qr.png`
+      const qrKey = st?.qrToken || st?.qrAt || ''
+      const qrUrl = qrKey ? `${API}/qr.png?t=${encodeURIComponent(qrKey)}` : `${API}/qr.png`
       const logged = !!st?.loggedIn
 
       return h('div', { className: 'fs-wrap' },
@@ -120,7 +121,7 @@ window.__ModuleLoader__.load({
               h('div', { className: 'fs-qrmask-text' }, '请在手机上点「允许登录」'),
             ) : null,
           ),
-          st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : (st?.qrAge > 150 ? '二维码即将过期，正在刷新…' : '用手机 QQ 扫码，并点允许登录')) : null,
+          st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : '用手机 QQ 扫码，并点允许登录') : null,
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           h('div', { className: 'fs-install' }, st.installedBefore ? '上次安装没完成' : '还没安装'),
