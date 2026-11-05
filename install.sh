@@ -216,7 +216,13 @@ for (const f of files) {
   const ws = Array.isArray(d.network.websocketServers) ? d.network.websocketServers : []
   const hit = ws.find((x) => Number(x.port) === port && x.enable !== false)
   if (hit) {
-    if (String(hit.token || '') !== String(token || '')) { if (token) hit.token = token; else delete hit.token; try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {} }
+    const tokDiff = String(hit.token || '') !== String(token || '')
+    const hostDiff = String(hit.host || '127.0.0.1') !== String(host || '127.0.0.1')
+    if (tokDiff || hostDiff) {
+      if (token) hit.token = token; else delete hit.token
+      hit.host = String(host || '127.0.0.1')
+      try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {}
+    }
     continue
   }
   const entry = { name: 'dsh', enable: true, host, port, messagePostFormat: 'array', reportSelfMessage: false, debug: false, heartInterval: 30000, enableForcePushEvent: true }
