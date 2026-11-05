@@ -245,13 +245,6 @@ function applyInner(ctx, pluginConfig = {}) {
         const port = Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001)
         const token = envFile.DSH_QQ_TOKEN || cfg.token
         const login = await probeLogin(port, token, true)
-        if (!login.loggedIn && !envFile.DSH_QQ_UIN) {
-          const guess = detectAccount(cfg.root)
-          if (guess) {
-            writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: guess }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
-            log(`[qq-stack] 从数据目录识别到账号 ${guess}`)
-          }
-        }
 
         if (scan.scanned && !login.loggedIn) {
           const acct = detectAccount(cfg.root)
@@ -361,16 +354,19 @@ function applyInner(ctx, pluginConfig = {}) {
           if (!login.loggedIn && !applying) {
             const acct = detectAccount(cfg.root)
             if (acct) {
-              applying = true
+              let changed = false
               if (!envFile.DSH_QQ_UIN) {
                 try { writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: acct }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n') } catch {}
               }
               try {
-                ensureOnebotFor(cfg.root, acct, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
-                ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
+                changed = ensureOnebotFor(cfg.root, acct, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
+                changed = ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1') || changed
               } catch {}
-              log('[qq-stack] 已登录但协议未启动，补配置并重启')
-              spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
+              if (changed) {
+                applying = true
+                log('[qq-stack] 已登录但协议未启动，补配置并重启')
+                spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
+              }
             }
           }
           return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, needsApply: !login.loggedIn && !!detectAccount(cfg.root), loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
@@ -415,13 +411,19 @@ function applyInner(ctx, pluginConfig = {}) {
             delete next.DSH_QQ_PASSWORD_MD5
             writeFileSync(`${cfg.root}/config.env`, Object.entries(next).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
           } catch {}
+          try { spawnSync('bash', [`${cfg.root}/stop-qq.sh`], { timeout: 60000 }) } catch {}
+          try { spawnSync('bash', ['-c', `rm -rf "${cfg.root}/data/qq-home"`], { timeout: 60000 }) } catch {}
           try {
-            const auth = `${cfg.root}/data/qq-home/.config/QQ/auth/login.enc`
-            if (existsSync(auth)) unlinkSync(auth)
+            for (const f of readdirSync(cfgDir(cfg.root))) {
+              if (/^onebot11_\d{5,12}\.json$/.test(f)) {
+                try { unlinkSync(`${cfgDir(cfg.root)}/${f}`) } catch {}
+              }
+            }
           } catch {}
           probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
-          spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
-          return json({ ok: true })
+          applying = false
+          try { spawnSafe('bash', [`${cfg.root}/start-qq.sh`], { cwd: cfg.root, detached: true, stdio: 'ignore', env }) } catch {}
+          return json({ ok: true, loggedIn: false })
         }
         if ((req.method === 'POST' || req.method === 'GET') && p === '/wipe') {
           try { spawnSync('bash', [`${cfg.root}/stop-qq.sh`], { timeout: 30000 }) } catch {}
