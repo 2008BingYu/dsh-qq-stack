@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "main": "./index.js",
-  "description": "DeepSeek Harness 的 QQ 协议端底座：LinuxQQ + NapCat 随引擎自启，扫码一次后自动快登。",
+  "description": "DeepSeek Harness 的 QQ 协议端底座：LinuxQQ 与 NapCat 随引擎启动，提供标准 OneBot 11 接口。",
   "keywords": [
     "dsh-plugin",
     "dsh",
