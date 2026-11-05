@@ -68,7 +68,6 @@ function resolveConfig(config = {}) {
 }
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
-let lastHealedAcctAt = 0
 async function probeLogin(port, token, force) {
   const ttl = probeCache.loggedIn ? 15000 : 3000
   if (!force && Date.now() - probeCache.at < ttl) return probeCache
