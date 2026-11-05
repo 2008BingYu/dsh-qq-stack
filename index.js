@@ -1,12 +1,26 @@
 import { spawn, spawnSync } from 'node:child_process'
 import net from 'node:net'
-import { existsSync, readFileSync, writeFileSync, statSync, readdirSync, unlinkSync, mkdirSync, openSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, appendFileSync, renameSync, statSync, readdirSync, unlinkSync, mkdirSync, openSync } from 'node:fs'
 
 export const name = 'dsh-qq-stack'
 export const inject = ['webServer']
 
 const SELF = new URL('.', import.meta.url).pathname
 const DEFAULTS = { root: '/root/qq-bot', uin: '', host: '127.0.0.1', wsPort: 3001, token: '' }
+
+function pluginLog(root, msg) {
+  try {
+    const dir = `${root}/logs`
+    mkdirSync(dir, { recursive: true })
+    const file = `${dir}/plugin.log`
+    try { if (statSync(file).size > 2 * 1024 * 1024) renameSync(file, `${file}.1`) } catch {}
+    const line = String(msg)
+      .replace(/access_token=[^&\s]+/g, 'access_token=***')
+      .replace(/"token"\s*:\s*"[^"]*"/g, '"token":"***"')
+      .replace(/DSH_QQ_TOKEN=.*/g, 'DSH_QQ_TOKEN=***')
+    appendFileSync(file, `${new Date().toISOString()} ${line}\n`)
+  } catch {}
+}
 
 function cfgDir(root) { return `${root}/opt/opt/QQ/resources/app/app_launcher/napcat/config` }
 
@@ -71,6 +85,7 @@ function resolveConfig(config = {}) {
 }
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
+let activeRoot = ''
 let applying = false
 async function probeLogin(port, token, force) {
   const ttl = probeCache.loggedIn ? 15000 : 3000
@@ -97,7 +112,11 @@ async function probeLogin(port, token, force) {
       ws.onerror = () => { clearTimeout(timer); finish({ loggedIn: false, nickname: '' }) }
     } catch { finish({ loggedIn: false, nickname: '' }) }
   })
+  const prevLogged = probeCache.loggedIn
   probeCache = { at: Date.now(), ...result }
+  if (!!result.loggedIn !== !!prevLogged) {
+    pluginLog(activeRoot, `probe loggedIn=${!!result.loggedIn}${result.uin ? ` uin=${result.uin}` : ''}${result.nickname ? ` nick=${result.nickname}` : ''}`)
+  }
   return probeCache
 }
 
@@ -200,6 +219,7 @@ export function apply(ctx, pluginConfig = {}) {
 
 function applyInner(ctx, pluginConfig = {}) {
   const cfg = resolveConfig(pluginConfig)
+  activeRoot = cfg.root
   try { mkdirSync(cfg.root, { recursive: true }) } catch {}
   const log = (msg) => { try { ctx.logger?.info?.(msg); if (process.env.DSH_QQ_DEBUG) console.log(msg) } catch {} }
   log(`[qq-stack] 激活 root=${cfg.root} uin=${cfg.uin || '(空)'} autoInstall=${cfg.autoInstall}`)
@@ -299,11 +319,20 @@ function applyInner(ctx, pluginConfig = {}) {
 
   try {
     const API = '/api/plugins/qq-stack'
+    let lastStatusSig = ''
     const handler = async (req, res) => {
+      const t0 = Date.now()
       try {
         const url = new URL(req.url, 'http://127.0.0.1')
         const p = url.pathname.replace(API, '') || '/'
-        const json = (o, code = 200) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)) }
+        const route = `${req.method} ${p}`
+        const json = (o, code = 200, note = '') => {
+          if (p !== '/status' && p !== '/' && p !== '/qr.png') {
+            pluginLog(cfg.root, `← ${route} ${code} ${Date.now() - t0}ms${note ? ` ${note}` : ''} ${JSON.stringify(o).slice(0, 160)}`)
+          }
+          res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o))
+        }
+        if (p !== '/status' && p !== '/' && p !== '/qr.png') pluginLog(cfg.root, `→ ${route}`)
         if (req.method === 'GET' && (p === '/status' || p === '/')) {
           const envFile = readEnvFile(cfg.root)
           let qq = false
@@ -377,8 +406,23 @@ function applyInner(ctx, pluginConfig = {}) {
               }
             }
           }
+          try {
+            const sig = [qq ? 'qq' : '-', wsUp ? 'ws' : '-', login.loggedIn ? `login:${login.uin}` : 'nologin', scan.scanned ? 'scanned' : '-', scan.authorized ? 'auth' : '-', scan.error || '-', installing ? 'installing' : '-', installed ? 'installed' : 'notinstalled', envFile.DSH_QQ_UIN || '-'].join(' ')
+            if (sig !== lastStatusSig) { lastStatusSig = sig; pluginLog(cfg.root, `status ${sig}`) }
+          } catch (e) { pluginLog(cfg.root, `status sig 失败 ${e?.message ?? e}`) }
           return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, needsApply: !login.loggedIn && !!detectAccount(cfg.root), loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
             port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
+        }
+        if (req.method === 'GET' && p === '/log') {
+          try {
+            const n = Math.max(10, Math.min(1000, Number(url.searchParams.get('n') || 200)))
+            const txt = readFileSync(`${cfg.root}/logs/plugin.log`, 'utf8').split('\n').slice(-n).join('\n')
+              .replace(/access_token=[^&\s]+/g, 'access_token=***')
+              .replace(/"token"\s*:\s*"[^"]*"/g, '"token":"***"')
+              .replace(/DSH_QQ_TOKEN=.*/g, 'DSH_QQ_TOKEN=***')
+            res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+            return res.end(txt)
+          } catch (e) { return json({ ok: false, error: String(e?.message ?? e) }, 500) }
         }
         if (req.method === 'GET' && p === '/qr.png') {
           let detectedUin = ''
@@ -407,7 +451,9 @@ function applyInner(ctx, pluginConfig = {}) {
               const cur = readEnvFile(cfg.root)
               const next = { ...cur, ...allow }
               writeFileSync(`${cfg.root}/config.env`, Object.entries(next).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
-              return json({ ok: true })
+              const changed = Object.keys(allow).map((k) => (k === 'DSH_QQ_TOKEN' ? `token=${allow[k] ? 'set' : 'empty'}` : `${k}=${allow[k]}`)).join(' ')
+              pluginLog(cfg.root, `save ${changed || '(空)'}`)
+              return json({ ok: true }, 200, changed)
             } catch (e) { return json({ ok: false, error: String(e?.message ?? e) }, 400) }
           })
           return
@@ -419,8 +465,9 @@ function applyInner(ctx, pluginConfig = {}) {
             delete next.DSH_QQ_PASSWORD_MD5
             writeFileSync(`${cfg.root}/config.env`, Object.entries(next).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
           } catch {}
+          pluginLog(cfg.root, 'logout 开始：清账号 + 停 QQ')
           try { spawnSync('bash', [`${cfg.root}/stop-qq.sh`], { timeout: 60000 }) } catch {}
-          try { spawnSync('bash', ['-c', `rm -rf "${cfg.root}/data/qq-home"`], { timeout: 60000 }) } catch {}
+          try { spawnSync('bash', ['-c', `rm -rf "${cfg.root}/data/qq-home"`], { timeout: 60000 }); pluginLog(cfg.root, 'logout 已删除 data/qq-home') } catch {}
           try {
             for (const f of readdirSync(cfgDir(cfg.root))) {
               if (/^onebot11_\d{5,12}\.json$/.test(f)) {
@@ -430,10 +477,12 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch {}
           probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
           applying = false
+          pluginLog(cfg.root, 'logout 完成，重新启动 QQ（应停在二维码）')
           try { spawnSafe('bash', [`${cfg.root}/start-qq.sh`], { cwd: cfg.root, detached: true, stdio: 'ignore', env }) } catch {}
           return json({ ok: true, loggedIn: false })
         }
         if ((req.method === 'POST' || req.method === 'GET') && p === '/wipe') {
+          pluginLog(cfg.root, 'wipe 开始：停 QQ 并删除运行环境')
           try { spawnSync('bash', [`${cfg.root}/stop-qq.sh`], { timeout: 30000 }) } catch {}
           try { spawnSync('bash', ['-c', `rm -rf "${cfg.root}"`], { timeout: 120000 }) } catch {}
           probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
@@ -446,7 +495,8 @@ function applyInner(ctx, pluginConfig = {}) {
             const fd = openSync(`${cfg.root}/logs/install.log`, 'a')
             const child = spawnSafe('bash', [installer], { cwd: cfg.root, detached: true, stdio: ['ignore', fd, fd], env })
             if (child?.pid) { try { writeFileSync(`${cfg.root}/install.pid`, String(child.pid)) } catch {} }
-          } catch {}
+            pluginLog(cfg.root, `install 已启动 pid=${child?.pid || '?'}`)
+          } catch (e) { pluginLog(cfg.root, `install 启动失败 ${e?.message ?? e}`) }
           return json({ ok: true })
         }
         if (req.method === 'POST' && p === '/apply') {
@@ -457,16 +507,19 @@ function applyInner(ctx, pluginConfig = {}) {
               writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: guess }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
             }
             const changed = ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
-            if (!changed) return json({ ok: true, restarted: false })
+            if (!changed) { pluginLog(cfg.root, 'apply 无变化，不重启'); return json({ ok: true, restarted: false }) }
           } catch {}
+          pluginLog(cfg.root, 'apply 有变化，重启 QQ')
           try { spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' }) } catch {}
           return json({ ok: true, restarted: true })
         }
         if (req.method === 'POST' && p === '/refresh-qr') {
+          pluginLog(cfg.root, 'refresh-qr：重启 QQ 重新出码')
           spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           return json({ ok: true })
         }
         if (req.method === 'POST' && p === '/restart') {
+          pluginLog(cfg.root, 'restart：重启 QQ')
           spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
           return json({ ok: true })
         }
