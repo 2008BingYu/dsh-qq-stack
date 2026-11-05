@@ -192,9 +192,10 @@ function scanState(root) {
   let raw = ''
   try {
     const txt = readFileSync(`${root}/logs/qq.log`, 'utf8')
-    raw = txt.slice(-20000)
+    raw = txt.slice(-60000)
   } catch { return { scanned: false, confirmed: false } }
-  const startIdx = raw.lastIndexOf('NapCat.Core Version')
+  let startIdx = raw.lastIndexOf('[qq-stack] start')
+  if (startIdx < 0) startIdx = raw.lastIndexOf('NapCat.Core Version')
   const tail = startIdx >= 0 ? raw.slice(startIdx) : raw
   let error = ''
   const em = tail.match(/Login Error[^\n]*/)
@@ -337,14 +338,6 @@ function applyInner(ctx, pluginConfig = {}) {
           const envFile = readEnvFile(cfg.root)
           let qq = false
           try { qq = alive(Number(readFileSync(`${cfg.root}/qq.pid`, 'utf8').trim())) } catch {}
-          let detectedUin = ''
-          try {
-            const dir = `${cfg.root}/opt/opt/QQ/resources/app/app_launcher/napcat/config`
-            for (const f of readdirSync(dir)) {
-              const m = f.match(/^onebot11_(\d{5,12})\.json$/)
-              if (m) { detectedUin = m[1]; break }
-            }
-          } catch {}
           const qr = `${cfg.root}/opt/opt/QQ/resources/app/app_launcher/napcat/cache/qrcode.png`
           let qrAt = 0
           let qrAge = 0
@@ -388,7 +381,9 @@ function applyInner(ctx, pluginConfig = {}) {
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false, authorized: false, error: '' }
           if (login.loggedIn) applying = false
-          if (!login.loggedIn && !applying) {
+          if (scan.scanned && !scan.authorized) applying = false
+          const inScanFlow = scan.scanned && !scan.authorized
+          if (!login.loggedIn && !applying && !inScanFlow) {
             const acct = detectAccount(cfg.root)
             if (acct) {
               let changed = false
@@ -410,7 +405,7 @@ function applyInner(ctx, pluginConfig = {}) {
             const sig = [qq ? 'qq' : '-', wsUp ? 'ws' : '-', login.loggedIn ? `login:${login.uin}` : 'nologin', scan.scanned ? 'scanned' : '-', scan.authorized ? 'auth' : '-', scan.error || '-', installing ? 'installing' : '-', installed ? 'installed' : 'notinstalled', envFile.DSH_QQ_UIN || '-'].join(' ')
             if (sig !== lastStatusSig) { lastStatusSig = sig; pluginLog(cfg.root, `status ${sig}`) }
           } catch (e) { pluginLog(cfg.root, `status sig 失败 ${e?.message ?? e}`) }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, needsApply: !login.loggedIn && !!detectAccount(cfg.root), loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, needsApply: !login.loggedIn && !!detectAccount(cfg.root), loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
             port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
         }
         if (req.method === 'GET' && p === '/log') {
@@ -425,14 +420,6 @@ function applyInner(ctx, pluginConfig = {}) {
           } catch (e) { return json({ ok: false, error: String(e?.message ?? e) }, 500) }
         }
         if (req.method === 'GET' && p === '/qr.png') {
-          let detectedUin = ''
-          try {
-            const dir = `${cfg.root}/opt/opt/QQ/resources/app/app_launcher/napcat/config`
-            for (const f of readdirSync(dir)) {
-              const m = f.match(/^onebot11_(\d{5,12})\.json$/)
-              if (m) { detectedUin = m[1]; break }
-            }
-          } catch {}
           const qr = `${cfg.root}/opt/opt/QQ/resources/app/app_launcher/napcat/cache/qrcode.png`
           if (!existsSync(qr)) { res.writeHead(404); return res.end() }
           res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' })
