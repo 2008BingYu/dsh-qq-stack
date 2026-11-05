@@ -254,27 +254,6 @@ function applyInner(ctx, pluginConfig = {}) {
           }
         }
 
-        if (!login.loggedIn && scan.authorized) {
-          const acct = detectAccount(cfg.root)
-          const acctFile = acct ? `${cfgDir(cfg.root)}/napcat_${acct}.json` : ''
-          let acctAt = 0
-          try { if (acctFile) acctAt = statSync(acctFile).mtimeMs } catch {}
-          if (acct && acctAt && acctAt !== lastHealedAcctAt) {
-            if (!envFile.DSH_QQ_UIN) {
-              try {
-                writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: acct }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
-                log(`[qq-stack] 记住账号 ${acct}`)
-              } catch {}
-            }
-            const created = ensureOnebotFor(cfg.root, acct, port, token, envFile.DSH_QQ_HOST || '127.0.0.1')
-            const healed = ensureOnebot(cfg.root, port, token) || created
-            if (healed) {
-              lastHealedAcctAt = acctAt
-              log('[qq-stack] QQ 已登录但 OneBot 没起来，补配置并重启')
-              spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
-            }
-          }
-        }
         if (login.loggedIn && login.uin && envFile.DSH_QQ_UIN !== login.uin) {
           const next = { ...envFile, DSH_QQ_UIN: login.uin }
           writeFileSync(`${cfg.root}/config.env`, Object.entries(next).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
@@ -351,7 +330,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false, authorized: false, error: '' }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, needsApply: !!scan.authorized && !login.loggedIn, loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
             port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
         }
         if (req.method === 'GET' && p === '/qr.png') {
