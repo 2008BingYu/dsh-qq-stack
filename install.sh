@@ -189,6 +189,10 @@ write_onebot() {
   "imageDownloadProxy": ""
 }
 EOF
+  if [ -z "${TOKEN:-}" ]; then
+    node -e 'const fs=require("fs");const p=process.argv[1];const d=JSON.parse(fs.readFileSync(p,"utf8"));for(const x of d.network.websocketServers||[])delete x.token;fs.writeFileSync(p,JSON.stringify(d,null,2));' "$CFG_DIR/onebot11_${uin}.json" 2>/dev/null || true
+  fi
+  cp -f "$CFG_DIR/onebot11_${uin}.json" "$CFG_DIR/onebot11.json" 2>/dev/null || true
 }
 
 if ! ls "$CFG_DIR"/onebot11_*.json >/dev/null 2>&1; then
@@ -208,7 +212,7 @@ const dir = join(root, 'opt/opt/QQ/resources/app/app_launcher/napcat/config')
 let files = []
 try { files = readdirSync(dir) } catch { process.exit(0) }
 for (const f of files) {
-  if (!/^onebot11_\d{5,12}\.json$/.test(f)) continue
+  if (!/^onebot11_[A-Za-z0-9_]*\.json$/.test(f)) continue
   const p = join(dir, f)
   let d = {}
   try { d = JSON.parse(readFileSync(p, 'utf8')) } catch { continue }
@@ -216,6 +220,7 @@ for (const f of files) {
   const ws = Array.isArray(d.network.websocketServers) ? d.network.websocketServers : []
   const hit = ws.find((x) => Number(x.port) === port && x.enable !== false)
   if (hit) {
+    if (!token && 'token' in hit) { delete hit.token; try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {} }
     const tokDiff = String(hit.token || '') !== String(token || '')
     const hostDiff = String(hit.host || '127.0.0.1') !== String(host || '127.0.0.1')
     if (tokDiff || hostDiff) {
