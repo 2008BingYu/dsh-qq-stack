@@ -15,7 +15,7 @@ function ensureOnebot(root, port, token, host = '127.0.0.1') {
   let files = []
   try { files = readdirSync(cfgDir(root)) } catch { return false }
   for (const f of files) {
-    if (!/^onebot11_\d{5,12}\.json$/.test(f)) continue
+    if (!/^onebot11_[A-Za-z0-9_]*\.json$/.test(f)) continue
     const p = `${cfgDir(root)}/${f}`
     let cfg
     try { cfg = JSON.parse(readFileSync(p, 'utf8')) } catch { cfg = {} }
