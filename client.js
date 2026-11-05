@@ -32,7 +32,7 @@ window.__ModuleLoader__.load({
 .fs-val{display:flex;align-items:center;gap:6px;opacity:.9}
 .fs-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 .fs-on{background:#39d98a}.fs-off{background:#ff5c5c}
-.fs-center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:180px}
+.fs-center{display:flex;flex-direction:column;align-items:center;gap:8px}
 .fs-qrbox{position:relative;display:flex;align-items:center;justify-content:center}
 .fs-qrmask{position:absolute;inset:0;background:rgba(0,0,0,.72);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .fs-qrmask-title{color:#fff;font-size:16px;font-weight:600}
@@ -194,17 +194,15 @@ window.__ModuleLoader__.load({
         ) : null,
         (st?.installed && !st?.installing && page === 'login' && !logged && !st?.loginError) ? h('div', { className: 'fs-card fs-center' },
           h('div', { className: 'fs-qrbox' },
-            (st?.authorized || st?.scanned)
-              ? h('div', { className: 'fs-hint' }, st?.authorized ? '已授权，正在登录…' : '已扫码，等待手机确认…')
-              : (st?.qrAt
-                ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
-                : h('div', { className: 'fs-hint' }, st?.qq ? '正在准备二维码…' : 'QQ 正在启动…')),
-            (st?.qrAt && !st?.authorized && st?.scanned) ? h('div', { className: 'fs-qrmask' },
+            st?.qrAt
+              ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
+              : h('div', { className: 'fs-hint' }, '正在生成二维码…'),
+            (st?.qrAt && st?.scanned) ? h('div', { className: 'fs-qrmask' },
               h('div', { className: 'fs-qrmask-title' }, '已扫码'),
               h('div', { className: 'fs-qrmask-text' }, '请在手机上点「允许登录」'),
             ) : null,
           ),
-          st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : '用手机 QQ 扫码，并点允许登录') : (st?.authorized ? h('div', { className: 'fs-hint' }, '登录成功后会显示头像') : null),
+          st?.qrAt ? h('div', { className: 'fs-hint' }, st?.scanned ? '确认后自动进入' : '用手机 QQ 扫码，并点允许登录') : null,
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
           row('LinuxQQ', !!st.linuxqqDone, st.linuxqqDone ? '已安装' : '未安装'),
