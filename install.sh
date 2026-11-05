@@ -240,10 +240,11 @@ export ELECTRON_DISABLE_SANDBOX=1
 [ -n "\${DSH_QQ_UIN:-}" ] && export NAPCAT_QUICK_ACCOUNT="\$DSH_QQ_UIN"
 if command -v node >/dev/null 2>&1 && [ -f fix-onebot.mjs ]; then node fix-onebot.mjs "$(pwd)" 2>/dev/null || true; fi
 if [ -f qq.pid ] && kill -0 "\$(cat qq.pid)" 2>/dev/null; then echo "QQ 已在运行"; exit 0; fi
+if [ -f ../../logs/qq.log ] && [ "$(stat -c %s ../../logs/qq.log 2>/dev/null || echo 0)" -gt 5242880 ]; then mv -f ../../logs/qq.log ../../logs/qq.log.1; fi
 cd opt/opt/QQ
 setsid dbus-run-session -- xvfb-run -a -s "-screen 0 1280x800x24" ./qq \\
   --no-sandbox --disable-gpu --disable-gpu-sandbox --in-process-gpu \\
-  --disable-dev-shm-usage --disable-gpu-compositing > ../../../logs/qq.log 2>&1 &
+  --disable-dev-shm-usage --disable-gpu-compositing >> ../../../logs/qq.log 2>&1 &
 echo \$! > ../../../qq.pid
 echo "QQ 启动中 (pid \$!)"
 EOF
