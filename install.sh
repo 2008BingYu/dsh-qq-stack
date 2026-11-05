@@ -7,7 +7,7 @@ cd "$ROOT" || exit 1
 if [ -f "$ROOT/config.env" ]; then
   set -a; . "$ROOT/config.env"; set +a
 fi
-UIN="${DSH_QQ_UIN:-}"
+UIN=""
 WS_PORT="${DSH_QQ_WS_PORT:-3001}"
 HOST="${DSH_QQ_HOST:-127.0.0.1}"
 TOKEN="${DSH_QQ_TOKEN:-}"
