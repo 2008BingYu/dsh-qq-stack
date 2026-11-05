@@ -10,7 +10,7 @@ fi
 UIN="${DSH_QQ_UIN:-}"
 WS_PORT="${DSH_QQ_WS_PORT:-3001}"
 HOST="${DSH_QQ_HOST:-127.0.0.1}"
-TOKEN="${DSH_QQ_TOKEN:-dshfish-3001}"
+TOKEN="${DSH_QQ_TOKEN:-}"
 
 if [ ! -f "$ROOT/config.env" ]; then
   cat > "$ROOT/config.env" <<EOF
