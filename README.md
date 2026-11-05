@@ -72,8 +72,19 @@ dsh plugin --profile web add dsh-qq-stack
 
 | 路径 | 内容 |
 | --- | --- |
+| `~/.dsh/qq-bot/logs/plugin.log` | 插件操作日志：每次按钮请求、状态变化、保存/应用/登出等（令牌已脱敏，超过 2MB 轮转） |
 | `~/.dsh/qq-bot/logs/install.log` | 安装过程与各步骤进度 |
 | `~/.dsh/qq-bot/logs/qq.log` | QQ 与 NapCat 运行日志 |
+
+## 排查
+
+页面上的每个操作（保存配置、应用配置、切换账号、清理运行环境、刷新二维码）都会记进 `logs/plugin.log`，包含请求路径、耗时、结果和关键状态变化。也可以直接取尾部内容：
+
+```
+http://127.0.0.1:3080/api/plugins/qq-stack/log?n=200
+```
+
+日志中的令牌一律替换为 `***`。
 
 ## 环境要求
 
