@@ -355,6 +355,22 @@ function applyInner(ctx, pluginConfig = {}) {
               installTail = lines.slice(-1).join(' ').slice(-160)
             }
           } catch {}
+          if (login.loggedIn) applying = false
+          if (!login.loggedIn && !applying) {
+            const acct = detectAccount(cfg.root)
+            if (acct) {
+              applying = true
+              if (!envFile.DSH_QQ_UIN) {
+                try { writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: acct }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n') } catch {}
+              }
+              try {
+                ensureOnebotFor(cfg.root, acct, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
+                ensureOnebot(cfg.root, Number(envFile.DSH_QQ_WS_PORT || 3001), envFile.DSH_QQ_TOKEN || '', envFile.DSH_QQ_HOST || '127.0.0.1')
+              } catch {}
+              log('[qq-stack] 已登录但协议未启动，补配置并重启')
+              spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
+            }
+          }
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false, authorized: false, error: '' }
