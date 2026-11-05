@@ -69,7 +69,6 @@ function resolveConfig(config = {}) {
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
 let lastHealedAcctAt = 0
-let settleAt = 0
 async function probeLogin(port, token, force) {
   const ttl = probeCache.loggedIn ? 15000 : 3000
   if (!force && Date.now() - probeCache.at < ttl) return probeCache
@@ -255,22 +254,9 @@ function applyInner(ctx, pluginConfig = {}) {
           }
         }
 
-        if (login.loggedIn) { settleAt = 0 }
-        if (!login.loggedIn && scan.authorized && !settleAt) settleAt = Date.now()
-        if (!login.loggedIn && scan.authorized && settleAt && Date.now() - settleAt > 25000) {
+        if (scan.scanned && !login.loggedIn) {
           const acct = detectAccount(cfg.root)
-          if (acct) {
-            if (!envFile.DSH_QQ_UIN) {
-              try { writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: acct }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n') } catch {}
-            }
-            const created = ensureOnebotFor(cfg.root, acct, port, token, envFile.DSH_QQ_HOST || '127.0.0.1')
-            const filled = ensureOnebot(cfg.root, port, token, envFile.DSH_QQ_HOST || '127.0.0.1') || created
-            if (filled) {
-              settleAt = 0
-              log('[qq-stack] 登录已稳定，应用 OneBot 配置并重启一次')
-              spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
-            }
-          }
+          if (acct) ensureOnebotFor(cfg.root, acct, port, token, envFile.DSH_QQ_HOST || '127.0.0.1')
         }
         if (login.loggedIn && login.uin && envFile.DSH_QQ_UIN !== login.uin) {
           const next = { ...envFile, DSH_QQ_UIN: login.uin }
