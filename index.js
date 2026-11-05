@@ -24,16 +24,18 @@ function ensureOnebot(root, port, token, host = '127.0.0.1') {
     const hit = list.find((x) => Number(x.port) === Number(port) && x.enable !== false)
     if (hit) {
       if (String(hit.token ?? '') !== String(token ?? '')) {
-        hit.token = String(token ?? '')
+        if (token) hit.token = String(token); else delete hit.token
         try { writeFileSync(p, JSON.stringify(cfg, null, 2)); changed = true } catch {}
       }
       continue
     }
-    cfg.network.websocketServers = [{
+    const entry = {
       name: 'dsh', enable: true, host, port: Number(port),
-      messagePostFormat: 'array', reportSelfMessage: false, token,
+      messagePostFormat: 'array', reportSelfMessage: false,
       debug: false, heartInterval: 30000, enableForcePushEvent: true,
-    }]
+    }
+    if (token) entry.token = String(token)
+    cfg.network.websocketServers = [entry]
     try { writeFileSync(p, JSON.stringify(cfg, null, 2)); changed = true } catch {}
   }
   return changed
@@ -66,7 +68,7 @@ function resolveConfig(config = {}) {
 }
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
-let healing = false
+let lastHealedAcctAt = 0
 async function probeLogin(port, token, force) {
   const ttl = probeCache.loggedIn ? 15000 : 3000
   if (!force && Date.now() - probeCache.at < ttl) return probeCache
@@ -129,8 +131,9 @@ function ensureOnebotFor(root, uin, port, token, host = '127.0.0.1') {
         httpServers: [], httpSseServers: [], httpClients: [], websocketClients: [], plugins: [],
         websocketServers: [{
           name: 'dsh', enable: true, host, port: Number(port),
-          messagePostFormat: 'array', reportSelfMessage: false, token,
+          messagePostFormat: 'array', reportSelfMessage: false,
           debug: false, heartInterval: 30000, enableForcePushEvent: true,
+          ...(token ? { token: String(token) } : {}),
         }],
       },
       musicSignUrl: '', enableLocalFile2Url: false, parseMultMsg: false, imageDownloadProxy: '',
@@ -250,10 +253,13 @@ function applyInner(ctx, pluginConfig = {}) {
             log(`[qq-stack] 从数据目录识别到账号 ${guess}`)
           }
         }
-        if (login.loggedIn) healing = false
-        if (!login.loggedIn && !healing && scan.authorized) {
+
+        if (!login.loggedIn && scan.authorized) {
           const acct = detectAccount(cfg.root)
-          if (acct) {
+          const acctFile = acct ? `${cfgDir(cfg.root)}/napcat_${acct}.json` : ''
+          let acctAt = 0
+          try { if (acctFile) acctAt = statSync(acctFile).mtimeMs } catch {}
+          if (acct && acctAt && acctAt !== lastHealedAcctAt) {
             if (!envFile.DSH_QQ_UIN) {
               try {
                 writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: acct }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n')
@@ -263,7 +269,7 @@ function applyInner(ctx, pluginConfig = {}) {
             const created = ensureOnebotFor(cfg.root, acct, port, token, envFile.DSH_QQ_HOST || '127.0.0.1')
             const healed = ensureOnebot(cfg.root, port, token) || created
             if (healed) {
-              healing = true
+              lastHealedAcctAt = acctAt
               log('[qq-stack] QQ 已登录但 OneBot 没起来，补配置并重启')
               spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
             }
