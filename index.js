@@ -358,7 +358,7 @@ function applyInner(ctx, pluginConfig = {}) {
           const wsUp = await portOpen(Number(envFile.DSH_QQ_WS_PORT || '3001'))
           const login = qq ? await probeLogin(Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001), envFile.DSH_QQ_TOKEN || cfg.token, !probeCache.loggedIn) : { loggedIn: false, nickname: '' }
           const scan = qq && !login.loggedIn ? scanState(cfg.root) : { scanned: false, authorized: false, error: '' }
-          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, needsApply: !!scan.authorized && !login.loggedIn, loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
+          return json({ ok: true, qq, loggedIn: !!login.loggedIn, nickname: login.nickname, uin: login.loggedIn ? login.uin : (detectedUin || envFile.DSH_QQ_UIN || detectAccount(cfg.root)), installed, installedBefore, installing, installStep, measurePct, linuxqqDone, napcatDone, scanned: !!scan.scanned, authorized: !!scan.authorized, needsApply: !login.loggedIn && !!detectAccount(cfg.root), loginError: scan.error || '', installTail, installLabel, installPct, wsUp, host: envFile.DSH_QQ_HOST || '127.0.0.1',
             port: envFile.DSH_QQ_WS_PORT || '3001', token: envFile.DSH_QQ_TOKEN || '', qrAt, qrAge, qrToken: qq && !login.loggedIn ? qrToken(cfg.root) : '' })
         }
         if (req.method === 'GET' && p === '/qr.png') {
