@@ -216,10 +216,12 @@ for (const f of files) {
   const ws = Array.isArray(d.network.websocketServers) ? d.network.websocketServers : []
   const hit = ws.find((x) => Number(x.port) === port && x.enable !== false)
   if (hit) {
-    if (String(hit.token || '') !== String(token || '')) { hit.token = token; try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {} }
+    if (String(hit.token || '') !== String(token || '')) { if (token) hit.token = token; else delete hit.token; try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {} }
     continue
   }
-  d.network.websocketServers = [{ name: 'dsh', enable: true, host, port, messagePostFormat: 'array', reportSelfMessage: false, token, debug: false, heartInterval: 30000, enableForcePushEvent: true }]
+  const entry = { name: 'dsh', enable: true, host, port, messagePostFormat: 'array', reportSelfMessage: false, debug: false, heartInterval: 30000, enableForcePushEvent: true }
+  if (token) entry.token = token
+  d.network.websocketServers = [entry]
   try { writeFileSync(p, JSON.stringify(d, null, 2)) } catch {}
 }
 EOFJS
