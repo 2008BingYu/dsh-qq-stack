@@ -185,7 +185,7 @@ window.__ModuleLoader__.load({
             h('button', { className: 'fs-btn fs-primary', onClick: () => post('/refresh-qr') }, '重新获取二维码'),
           ),
         ) : null,
-        (st?.installed && !st?.installing && page === 'login' && !logged && !st?.loginError && !st?.uin) ? h('div', { className: 'fs-card fs-center' },
+        (st?.installed && !st?.installing && page === 'login' && !logged && !st?.loginError && !(st?.scanned || st?.authorized)) ? h('div', { className: 'fs-card fs-center' },
           h('div', { className: 'fs-qrbox' },
             st?.qrAt
               ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
@@ -201,7 +201,7 @@ window.__ModuleLoader__.load({
           row('LinuxQQ', !!st.linuxqqDone, st.linuxqqDone ? '已安装' : '未安装'),
           row('NapCat', !!st.napcatDone, st.napcatDone ? '已安装' : '未安装'),
         ) : null,
-        (st?.installed && !st?.installing && page === 'login' && !logged && st?.uin) ? h('div', { className: 'fs-card fs-center' },
+        (st?.installed && !st?.installing && page === 'login' && !logged && (st?.scanned || st?.authorized)) ? h('div', { className: 'fs-card fs-center' },
           h('div', { className: 'fs-hint' }, '正在登录…'),
         ) : null,
         (st && !st.installed && !st.installing) ? h('div', { className: 'fs-card' },
