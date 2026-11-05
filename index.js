@@ -143,16 +143,15 @@ function ensureOnebotFor(root, uin, port, token, host = '127.0.0.1') {
 }
 
 function detectAccount(root) {
-  let pidAt = 0
-  try { pidAt = statSync(`${root}/qq.pid`).mtimeMs } catch {}
   let best = ''
   let bestAt = 0
   try {
-    for (const f of readdirSync(cfgDir(root))) {
-      const m = f.match(/^napcat_(\d{5,12})\.json$/)
+    const dir = `${root}/data/qq-home/.config/QQ/global/nt_data/Login`
+    for (const f of readdirSync(dir)) {
+      const m = f.match(/^\.?(\d{5,12})$/)
       if (!m) continue
-      const at = statSync(`${cfgDir(root)}/${f}`).mtimeMs
-      if (at >= pidAt && at > bestAt) { bestAt = at; best = m[1] }
+      const at = statSync(`${dir}/${f}`).mtimeMs
+      if (at > bestAt) { bestAt = at; best = m[1] }
     }
   } catch {}
   return best
