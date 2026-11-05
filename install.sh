@@ -257,8 +257,10 @@ cd "$(dirname "$0")" || exit 1
 pid=$(cat qq.pid 2>/dev/null)
 if [ -n "$pid" ]; then
   pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
+  [ -n "$pgid" ] && kill -INT -"$pgid" 2>/dev/null
+  for i in $(seq 1 5); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
   [ -n "$pgid" ] && kill -TERM -"$pgid" 2>/dev/null
-  for i in $(seq 1 10); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+  for i in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
   [ -n "$pgid" ] && kill -KILL -"$pgid" 2>/dev/null
   kill -KILL "$pid" 2>/dev/null
 fi
