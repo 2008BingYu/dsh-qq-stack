@@ -194,9 +194,11 @@ window.__ModuleLoader__.load({
         ) : null,
         (st?.installed && !st?.installing && page === 'login' && !logged && !st?.loginError) ? h('div', { className: 'fs-card fs-center' },
           h('div', { className: 'fs-qrbox' },
-            st?.qrAt
-              ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
-              : h('div', { className: 'fs-hint' }, st?.authorized ? '已授权，正在登录…' : (st?.scanned ? '已扫码，等待手机确认…' : (st?.qq ? '正在准备二维码…' : 'QQ 正在启动…'))),
+            (st?.authorized || st?.scanned)
+              ? h('div', { className: 'fs-hint' }, st?.authorized ? '已授权，正在登录…' : '已扫码，等待手机确认…')
+              : (st?.qrAt
+                ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
+                : h('div', { className: 'fs-hint' }, st?.qq ? '正在准备二维码…' : 'QQ 正在启动…')),
             (st?.qrAt && st?.scanned) ? h('div', { className: 'fs-qrmask' },
               h('div', { className: 'fs-qrmask-title' }, '已扫码'),
               h('div', { className: 'fs-qrmask-text' }, '请在手机上点「允许登录」'),
