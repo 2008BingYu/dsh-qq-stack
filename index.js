@@ -68,6 +68,7 @@ function resolveConfig(config = {}) {
 }
 
 let probeCache = { at: 0, loggedIn: false, nickname: '', uin: '' }
+let applying = false
 async function probeLogin(port, token, force) {
   const ttl = probeCache.loggedIn ? 15000 : 3000
   if (!force && Date.now() - probeCache.at < ttl) return probeCache
@@ -256,6 +257,30 @@ function applyInner(ctx, pluginConfig = {}) {
         if (scan.scanned && !login.loggedIn) {
           const acct = detectAccount(cfg.root)
           if (acct) ensureOnebotFor(cfg.root, acct, port, token, envFile.DSH_QQ_HOST || '127.0.0.1')
+        }
+        if (login.loggedIn) applying = false
+        if (!login.loggedIn && !applying && scan.authorized) {
+          const acct = detectAccount(cfg.root)
+          if (acct) {
+            // QQ 把登录凭证写进这个文件，存在即表示登录已落盘
+            const cred = `${cfg.root}/data/qq-home/.config/QQ/global/nt_data/Login/.${acct}`
+            let credAt = 0
+            let pidAt = 0
+            try { credAt = statSync(cred).mtimeMs } catch {}
+            try { pidAt = statSync(`${cfg.root}/qq.pid`).mtimeMs } catch {}
+            if (credAt && credAt >= pidAt) {
+              if (!envFile.DSH_QQ_UIN) {
+                try { writeFileSync(`${cfg.root}/config.env`, Object.entries({ ...envFile, DSH_QQ_UIN: acct }).map(([k, x]) => `${k}=${x}`).join('\n') + '\n') } catch {}
+              }
+              const created = ensureOnebotFor(cfg.root, acct, port, token, envFile.DSH_QQ_HOST || '127.0.0.1')
+              const filled = ensureOnebot(cfg.root, port, token, envFile.DSH_QQ_HOST || '127.0.0.1') || created
+              if (filled) {
+                applying = true
+                log('[qq-stack] 登录已落盘，应用 OneBot 配置并重启一次')
+                spawnSafe('bash', ['-c', 'bash stop-qq.sh; bash start-qq.sh'], { cwd: cfg.root, detached: true, stdio: 'ignore' })
+              }
+            }
+          }
         }
         if (login.loggedIn && login.uin && envFile.DSH_QQ_UIN !== login.uin) {
           const next = { ...envFile, DSH_QQ_UIN: login.uin }
