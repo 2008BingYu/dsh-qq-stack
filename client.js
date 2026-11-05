@@ -192,7 +192,7 @@ window.__ModuleLoader__.load({
             h('button', { className: 'fs-btn fs-primary', onClick: () => post('/refresh-qr') }, '重新获取二维码'),
           ),
         ) : null,
-        (st?.installed && !st?.installing && page === 'login' && !logged && !st?.loginError) ? h('div', { className: 'fs-card fs-center' },
+        (st?.installed && !st?.installing && page === 'login' && !logged && !st?.loginError && !st?.needsApply) ? h('div', { className: 'fs-card fs-center' },
           h('div', { className: 'fs-qrbox' },
             st?.qrAt
               ? h('img', { className: 'fs-qr', src: qrUrl, alt: '登录二维码' })
