@@ -23,8 +23,11 @@ function ensureOnebot(root, port, token, host = '127.0.0.1') {
     const list = Array.isArray(cfg.network.websocketServers) ? cfg.network.websocketServers : []
     const hit = list.find((x) => Number(x.port) === Number(port) && x.enable !== false)
     if (hit) {
-      if (String(hit.token ?? '') !== String(token ?? '')) {
+      const tokDiff = String(hit.token ?? '') !== String(token ?? '')
+      const hostDiff = String(hit.host ?? '127.0.0.1') !== String(host ?? '127.0.0.1')
+      if (tokDiff || hostDiff) {
         if (token) hit.token = String(token); else delete hit.token
+        hit.host = String(host || '127.0.0.1')
         try { writeFileSync(p, JSON.stringify(cfg, null, 2)); changed = true } catch {}
       }
       continue
@@ -175,8 +178,12 @@ function scanState(root) {
   const startIdx = raw.lastIndexOf('NapCat.Core Version')
   const tail = startIdx >= 0 ? raw.slice(startIdx) : raw
   let error = ''
-  const em = tail.match(/Login Error[^\n]*?"message":"([^"]+)"/)
-  if (em) error = em[1]
+  const em = tail.match(/Login Error[^\n]*/)
+  if (em) {
+    const msg = em[0].match(/"message":"([^"]+)"/)
+    const code = em[0].match(/ErrCode[^\d]*(\d+)/)
+    error = msg ? msg[1] : `登录失败（错误码 ${code ? code[1] : '未知'}）`
+  }
   const scanned = tail.includes('二维码已被扫描') || tail.includes('扫码成功')
   const authorized = scanned && (tail.includes('已加载 2 个适配器') || tail.includes('登录成功'))
   return { scanned, authorized, error }
@@ -245,6 +252,7 @@ function applyInner(ctx, pluginConfig = {}) {
         const port = Number(envFile.DSH_QQ_WS_PORT || cfg.wsPort || 3001)
         const token = envFile.DSH_QQ_TOKEN || cfg.token
         const login = await probeLogin(port, token, true)
+        const scan = scanState(cfg.root)
 
         if (scan.scanned && !login.loggedIn) {
           const acct = detectAccount(cfg.root)
