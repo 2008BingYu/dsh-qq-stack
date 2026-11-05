@@ -154,7 +154,7 @@ window.__ModuleLoader__.load({
       const qrKey = st?.qrToken || st?.qrAt || ''
       const qrUrl = qrKey ? `${API}/qr.png?t=${encodeURIComponent(qrKey)}` : `${API}/qr.png`
       const logged = !!st?.loggedIn
-      const page = tab || (logged ? 'settings' : 'login')
+      const page = tab || 'login'
       react.useEffect(() => {
         if (page !== 'settings' || !st?.installed) return
         const t = setInterval(() => {
