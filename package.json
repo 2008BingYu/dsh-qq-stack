@@ -1,6 +1,6 @@
 {
   "name": "dsh-qq-stack",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "main": "./index.js",
   "description": "DeepSeek Harness 的 QQ 协议端底座：LinuxQQ 与 NapCat 随引擎启动，提供标准 OneBot 11 接口。",
