@@ -26,7 +26,8 @@ window.__ModuleLoader__.load({
         text))
 
     const CSS = `
-.fs-page{padding:16px 14px 24px;max-width:680px;margin:0 auto;overflow-y:auto}
+.fs-page{padding:20px 16px 28px;max-width:680px;margin:0 auto;overflow-y:auto;min-height:100%}
+.fs-page-title{font-size:20px;font-weight:600;margin:4px 2px 14px}
 .fs-wrap{display:flex;flex-direction:column;gap:12px}
 .fs-card{background:var(--dsw-alias-bg-secondary,rgba(127,127,127,.08));border-radius:14px;padding:12px}
 .fs-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px}
@@ -300,7 +301,10 @@ window.__ModuleLoader__.load({
     }
 
     function QQPage() {
-      return h('div', { className: 'fs-page' }, h(Panel))
+      return h('div', { className: 'fs-page' },
+        h('div', { className: 'fs-page-title' }, 'QQ'),
+        h(Panel),
+      )
     }
 
     function apply(ctx) {
@@ -314,7 +318,7 @@ window.__ModuleLoader__.load({
       ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
         name: 'sidebar.panellist',
         id: 'qq-stack',
-        order: 30,
+        order: 3,
         label: () => 'QQ',
       }, QQIcon))
     }
