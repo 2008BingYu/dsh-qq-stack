@@ -26,6 +26,7 @@ window.__ModuleLoader__.load({
         text))
 
     const CSS = `
+.fs-page{padding:16px 14px 24px;max-width:680px;margin:0 auto;overflow-y:auto}
 .fs-wrap{display:flex;flex-direction:column;gap:12px}
 .fs-card{background:var(--dsw-alias-bg-secondary,rgba(127,127,127,.08));border-radius:14px;padding:12px}
 .fs-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px}
@@ -286,6 +287,22 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function QQIcon({ size }) {
+      const s = size || 18
+      return h('svg', {
+        width: s, height: s, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round',
+      },
+        h('circle', { cx: 12, cy: 12, r: 9 }),
+        h('path', { d: 'M8.5 10.5h.01M15.5 10.5h.01' }),
+        h('path', { d: 'M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8' }),
+      )
+    }
+
+    function QQPage() {
+      return h('div', { className: 'fs-page' }, h(Panel))
+    }
+
     function apply(ctx) {
       ctx.slots.inject('settings.section', () => ctx.slots.register({
         name: 'settings.section',
@@ -293,6 +310,13 @@ window.__ModuleLoader__.load({
         order: 61,
         label: () => 'QQ 底座',
       }, Panel))
+      ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'qq-stack' }, QQPage))
+      ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+        name: 'sidebar.panellist',
+        id: 'qq-stack',
+        order: 30,
+        label: () => 'QQ',
+      }, QQIcon))
     }
 
     exports.apply = apply;
