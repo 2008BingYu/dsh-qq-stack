@@ -26,11 +26,11 @@ window.__ModuleLoader__.load({
         text))
 
     const CSS = `
-.fs-page{padding:20px 16px 28px;max-width:680px;margin:0 auto;overflow-y:auto;min-height:100%}
+.fs-page{padding:20px 16px 28px;width:100%;max-width:720px;margin:0 auto;overflow-y:auto;min-height:100%;box-sizing:border-box}
 .fs-page-title{font-size:20px;font-weight:600;margin:4px 2px 14px}
-.fs-wrap{display:flex;flex-direction:column;gap:12px}
-.fs-card{background:var(--dsw-alias-bg-secondary,rgba(127,127,127,.08));border-radius:14px;padding:12px}
-.fs-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px}
+.fs-wrap{display:flex;flex-direction:column;gap:12px;width:100%}
+.fs-card{background:var(--dsw-alias-bg-secondary,rgba(127,127,127,.08));border-radius:14px;padding:14px 16px;width:100%;box-sizing:border-box}
+.fs-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:14px}
 .fs-val{display:flex;align-items:center;gap:6px;opacity:.9}
 .fs-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 .fs-on{background:#39d98a}.fs-off{background:#ff5c5c}
@@ -40,7 +40,7 @@ window.__ModuleLoader__.load({
 .fs-qrmask-title{color:#fff;font-size:16px;font-weight:600}
 .fs-qrmask-text{color:rgba(255,255,255,.85);font-size:13px}
 .fs-qr{width:min(62vw,240px);height:auto;border-radius:12px;background:#fff;padding:8px}
-.fs-hint{font-size:12px;opacity:.6}
+.fs-hint{font-size:13px;opacity:.6}
 .fs-sec-title{font-size:14px;font-weight:600;margin-bottom:12px}
 .fs-field-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .fs-field-label{width:44px;font-size:13px;opacity:.65;flex:none}
@@ -77,7 +77,7 @@ window.__ModuleLoader__.load({
 .fs-field{width:100%;box-sizing:border-box;border:0;border-bottom:1px solid rgba(127,127,127,.28);background:transparent;color:inherit;padding:10px 2px;font-size:15px;outline:none}
 .fs-wide{padding:11px}
 .fs-sep{text-align:center;font-size:12px;opacity:.5;margin-top:6px}
-.fs-install{font-size:14px;font-weight:600;margin-bottom:6px}
+.fs-install{font-size:15px;font-weight:600;margin-bottom:6px}
 .fs-step{margin:0}
 .fs-step-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .fs-step-label{font-size:13px}
