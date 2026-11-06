@@ -80,7 +80,7 @@ function resolveConfig(config = {}) {
     host: String(pick(config.host, process.env.DSH_QQ_HOST, file.DSH_QQ_HOST ?? DEFAULTS.host)),
     wsPort: Number(pick(config.wsPort, process.env.DSH_QQ_WS_PORT, file.DSH_QQ_WS_PORT ?? DEFAULTS.wsPort)),
     token: String(pick(config.token, process.env.DSH_QQ_TOKEN, file.DSH_QQ_TOKEN ?? DEFAULTS.token)),
-    autoInstall: config.autoInstall ?? true,
+    autoInstall: config.autoInstall ?? false,
   }
 }
 
